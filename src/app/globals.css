@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --vox-orange: #F59E0B;
+  --vox-red: #EF4444;
+  --vox-purple: #8B5CF6;
+  --vox-dark: #020617;
+}
+
+body {
+  background: var(--vox-dark);
+  color: white;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Dark theme for Leaflet map tiles */
+.leaflet-tile-pane {
+  filter: brightness(0.55) contrast(1.3) saturate(0.3) hue-rotate(180deg) invert(1);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0F172A;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+/* RTL support */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Leaflet popup dark theme */
+.leaflet-popup-content-wrapper {
+  background: #0F172A !important;
+  color: white !important;
+  border: 1px solid #1E293B !important;
+  border-radius: 12px !important;
+}
+.leaflet-popup-tip {
+  background: #0F172A !important;
+}
+
+/* Glow animations */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.5); }
+}
+
+.glow-border {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #F59E0B, #EF4444, #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
