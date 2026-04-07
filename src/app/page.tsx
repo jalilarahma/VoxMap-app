@@ -44,11 +44,11 @@ export default function Home() {
       {screen === "map" && (
         <>
           <WorldMap lang={lang} />
-          {/* Analytics button */}
+          {/* Analytics button - urban */}
           <button
             onClick={() => setShowAnalytics(true)}
-            className="fixed top-4 right-4 z-[1500] bg-vox-dark-card/90 backdrop-blur-sm
-              rounded-xl px-4 py-2 border border-vox-dark-border
+            className="fixed top-4 right-4 z-[1500] bg-[#141414]/90 backdrop-blur-sm
+              px-3 py-2 border-l-2 border-[#BFFF00]
               hover:bg-white/10 transition-all text-sm"
           >
             📊

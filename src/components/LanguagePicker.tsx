@@ -19,12 +19,13 @@ export default function LanguagePicker({
         <button
           key={lang}
           onClick={() => onChangeLang(lang)}
-          className={`px-2 py-1 rounded-lg text-xs font-medium transition-all
+          className={`px-2 py-1 text-[10px] font-urban tracking-wider transition-all
             ${
               currentLang === lang
-                ? "bg-orange-500 text-white"
-                : "bg-vox-dark-card/80 text-slate-400 border border-vox-dark-border hover:bg-white/10"
+                ? "bg-[#BFFF00] text-black"
+                : "bg-[#141414] text-zinc-500 border border-[#2A2A2A] hover:border-[#BFFF00] hover:text-[#BFFF00]"
             }`}
+          style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))' }}
         >
           {LANG_LABELS[lang]}
         </button>

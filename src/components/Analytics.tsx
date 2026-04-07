@@ -98,13 +98,13 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
 
   return (
     <div className="fixed inset-0 z-[3000] bg-black/80 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-vox-dark-card rounded-2xl border border-vox-dark-border p-6">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-[#141414] border-l-2 border-[#BFFF00] p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold gradient-text">📊 {tr.analytics}</h2>
+          <h2 className="text-2xl font-urban tracking-wider spray-text">📊 {tr.analytics}</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-xl transition-colors"
+            className="text-zinc-500 hover:text-[#FF006E] text-xl transition-colors font-urban"
           >
             ✕
           </button>

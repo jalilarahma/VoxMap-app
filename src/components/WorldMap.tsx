@@ -4,20 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
 
-// SOS Categories
+// SOS Categories - Urban color scheme
 const SOS_CATEGORIES = [
-  { id: "danger", icon: "⚠️", color: "#EF4444" },
-  { id: "robbery", icon: "💰", color: "#F59E0B" },
-  { id: "assault", icon: "🤛", color: "#DC2626" },
-  { id: "medical", icon: "🏥", color: "#10B981" },
-  { id: "fire", icon: "🔥", color: "#F97316" },
-  { id: "trapped", icon: "🚧", color: "#8B5CF6" },
-  { id: "flood", icon: "🌊", color: "#3B82F6" },
-  { id: "shooting", icon: "🔫", color: "#991B1B" },
-  { id: "missing", icon: "👤", color: "#6366F1" },
-  { id: "safe", icon: "✅", color: "#22C55E" },
-  { id: "help", icon: "🆘", color: "#E11D48" },
-  { id: "info", icon: "ℹ️", color: "#0EA5E9" },
+  { id: "danger", icon: "⚠️", color: "#FF006E", anim: "animate-shake-icon" },
+  { id: "robbery", icon: "💰", color: "#FF6B00", anim: "animate-pulse-icon" },
+  { id: "assault", icon: "🤛", color: "#FF006E", anim: "animate-shake-icon" },
+  { id: "medical", icon: "🏥", color: "#00F5FF", anim: "animate-pulse-icon" },
+  { id: "fire", icon: "🔥", color: "#FF6B00", anim: "animate-glow-icon" },
+  { id: "trapped", icon: "🚧", color: "#BFFF00", anim: "animate-bounce-icon" },
+  { id: "flood", icon: "🌊", color: "#00F5FF", anim: "animate-bounce-icon" },
+  { id: "shooting", icon: "🔫", color: "#FF006E", anim: "animate-shake-icon" },
+  { id: "missing", icon: "👤", color: "#C084FC", anim: "animate-pulse-icon" },
+  { id: "safe", icon: "✅", color: "#BFFF00", anim: "animate-glow-icon" },
+  { id: "help", icon: "🆘", color: "#FF006E", anim: "animate-shake-icon" },
+  { id: "info", icon: "ℹ️", color: "#00F5FF", anim: "animate-pulse-icon" },
 ];
 
 const URGENCY_LEVELS = [
@@ -277,22 +277,21 @@ export default function WorldMap({ lang }: WorldMapProps) {
       {/* Map container */}
       <div ref={mapRef} className="w-full h-full z-0" />
 
-      {/* Top stats bar */}
+      {/* Top stats bar - urban style */}
       <div className="absolute top-4 left-4 right-16 z-[1000] flex gap-2 pointer-events-none">
-        <div className="bg-vox-dark-card/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-vox-dark-border pointer-events-auto">
-          <span className="text-xs text-slate-400">{tr.pins_active}</span>
-          <span className="ml-2 text-lg font-bold text-orange-400">{pins.length}</span>
+        <div className="bg-[#141414]/90 backdrop-blur-sm px-4 py-2 border-l-2 border-[#BFFF00] pointer-events-auto">
+          <span className="text-[10px] font-urban tracking-wider text-zinc-500">{tr.pins_active}</span>
+          <span className="ml-2 text-lg font-bold text-[#BFFF00]">{pins.length}</span>
         </div>
-        <div className="bg-vox-dark-card/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-vox-dark-border pointer-events-auto">
-          <span className="text-xs text-slate-400">{tr.people_helped}</span>
-          <span className="ml-2 text-lg font-bold text-green-400">{helpedCount}</span>
+        <div className="bg-[#141414]/90 backdrop-blur-sm px-4 py-2 border-l-2 border-[#00F5FF] pointer-events-auto">
+          <span className="text-[10px] font-urban tracking-wider text-zinc-500">{tr.people_helped}</span>
+          <span className="ml-2 text-lg font-bold text-[#00F5FF]">{helpedCount}</span>
         </div>
-        {/* Live feed button */}
         <button
           onClick={() => setShowFeed(!showFeed)}
-          className="bg-vox-dark-card/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-vox-dark-border pointer-events-auto hover:bg-white/10 transition-all"
+          className="bg-[#141414]/90 backdrop-blur-sm px-4 py-2 border-l-2 border-[#FF006E] pointer-events-auto hover:bg-white/10 transition-all"
         >
-          <span className="text-xs">📡 {tr.live_feed}</span>
+          <span className="text-[10px] font-urban tracking-wider">📡 {tr.live_feed}</span>
         </button>
       </div>
 
@@ -335,36 +334,37 @@ export default function WorldMap({ lang }: WorldMapProps) {
         </div>
       )}
 
-      {/* Category filter bar */}
+      {/* Category filter bar - urban style */}
       <div className="absolute bottom-24 left-0 right-0 z-[1000] px-4">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {SOS_CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveFilter(activeFilter === cat.id ? null : cat.id)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-full text-sm whitespace-nowrap
-                transition-all border
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-urban tracking-wider whitespace-nowrap
+                transition-all border-l-2
                 ${activeFilter === cat.id
-                  ? "bg-white/20 border-white/40"
-                  : "bg-vox-dark-card/80 border-vox-dark-border hover:bg-white/10"
+                  ? "bg-white/15 text-white"
+                  : "bg-[#141414]/80 text-zinc-400 hover:text-white"
                 }`}
+              style={{ borderLeftColor: cat.color }}
             >
-              <span>{cat.icon}</span>
+              <span className={cat.anim}>{cat.icon}</span>
               <span>{tr[cat.id as keyof typeof tr] || cat.id}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* SOS Button */}
+      {/* SOS Button - urban style */}
       <button
         onClick={() => setShowCreatePin(true)}
         className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]
-          px-8 py-4 rounded-2xl text-lg font-bold text-white
-          bg-gradient-to-r from-red-600 to-red-500
-          hover:from-red-500 hover:to-red-400
+          px-10 py-4 text-lg font-urban uppercase tracking-wider text-black
+          bg-[#FF006E] hover:bg-[#BFFF00]
           active:scale-95 transition-all duration-200
-          shadow-lg shadow-red-500/30"
+          shadow-lg shadow-[#FF006E]/30"
+        style={{ clipPath: 'polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px))' }}
       >
         🆘 {tr.emergency}
       </button>
@@ -372,11 +372,11 @@ export default function WorldMap({ lang }: WorldMapProps) {
       {/* Create Pin Modal */}
       {showCreatePin && (
         <div className="absolute inset-0 z-[2000] bg-black/70 flex items-end">
-          <div className="w-full bg-vox-dark-card rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto border-t border-vox-dark-border">
+          <div className="w-full bg-[#141414] p-6 max-h-[80vh] overflow-y-auto border-t-2 border-[#FF006E]">
             {/* Step 0: Category */}
             {createStep === 0 && (
               <>
-                <h3 className="text-xl font-bold mb-4">{tr.select_category}</h3>
+                <h3 className="text-xl font-urban tracking-wider mb-4">{tr.select_category}</h3>
                 <div className="grid grid-cols-3 gap-3">
                   {SOS_CATEGORIES.map((cat) => (
                     <button
@@ -385,12 +385,12 @@ export default function WorldMap({ lang }: WorldMapProps) {
                         setSelectedCategory(cat.id);
                         setCreateStep(1);
                       }}
-                      className="flex flex-col items-center gap-2 p-4 rounded-xl border
-                        border-vox-dark-border bg-vox-dark/50 hover:bg-white/5
-                        transition-all hover:scale-105"
+                      className="sticker flex flex-col items-center gap-2 p-4
+                        hover:border-[#BFFF00] transition-all"
+                      style={{ ['--rotate' as any]: `${Math.random() * 4 - 2}deg` }}
                     >
-                      <span className="text-2xl">{cat.icon}</span>
-                      <span className="text-xs" style={{ color: cat.color }}>
+                      <span className={`text-2xl ${cat.anim}`}>{cat.icon}</span>
+                      <span className="text-[10px] font-urban tracking-wider" style={{ color: cat.color }}>
                         {tr[cat.id as keyof typeof tr] || cat.id}
                       </span>
                     </button>
@@ -402,7 +402,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
             {/* Step 1: Urgency */}
             {createStep === 1 && (
               <>
-                <h3 className="text-xl font-bold mb-4">{tr.select_urgency}</h3>
+                <h3 className="text-xl font-urban tracking-wider mb-4">{tr.select_urgency}</h3>
                 <div className="space-y-3">
                   {URGENCY_LEVELS.map((urg) => (
                     <button
@@ -428,7 +428,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
             {/* Step 2: Note + Submit */}
             {createStep === 2 && (
               <>
-                <h3 className="text-xl font-bold mb-4">{tr.add_note}</h3>
+                <h3 className="text-xl font-urban tracking-wider mb-4">{tr.add_note}</h3>
                 <textarea
                   value={pinNote}
                   onChange={(e) => setPinNote(e.target.value)}

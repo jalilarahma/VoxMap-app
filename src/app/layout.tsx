@@ -26,8 +26,10 @@ export default function RootLayout({
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           crossOrigin=""
         />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
       </head>
-      <body className="bg-vox-dark min-h-screen text-white antialiased">
+      <body className="bg-[#0A0A0A] min-h-screen text-white antialiased noise-bg">
         {children}
       </body>
     </html>

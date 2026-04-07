@@ -19,30 +19,50 @@ interface Question {
   text_fa: string | null;
 }
 
-// Get question text in the right language
 function getQuestionText(q: Question, lang: Lang): string {
   const key = `text_${lang}` as keyof Question;
   return (q[key] as string) || q.text_en;
 }
 
+const SLIDER_LABELS = [
+  { emoji: "😤", color: "#FF006E" },
+  { emoji: "😕", color: "#FF6B00" },
+  { emoji: "🤔", color: "#FFB800" },
+  { emoji: "😊", color: "#7FFF00" },
+  { emoji: "🔥", color: "#BFFF00" },
+];
+
 export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
   const tr = t[lang];
   const [voted, setVoted] = useState(false);
   const [alreadyVoted, setAlreadyVoted] = useState(false);
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [sliderValue, setSliderValue] = useState(50);
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [voteCounts, setVoteCounts] = useState<number[]>([0, 0, 0, 0]);
   const [totalVotes, setTotalVotes] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch today's question from Supabase
+  // Map slider (0-100) to option index (0-3)
+  function sliderToOption(val: number): number {
+    if (val < 25) return 3; // strongly disagree
+    if (val < 50) return 2; // disagree
+    if (val < 75) return 1; // agree
+    return 0; // strongly agree
+  }
+
+  // Get current emoji based on slider position
+  function getCurrentEmoji(): { emoji: string; color: string } {
+    const idx = Math.min(Math.floor(sliderValue / 20), 4);
+    return SLIDER_LABELS[idx];
+  }
+
   useEffect(() => {
     async function fetchQuestion() {
       const dayOfYear = Math.floor(
         (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
       );
 
-      // Get today's question
       const { data: q, error } = await supabase
         .from("questions")
         .select("*")
@@ -50,7 +70,6 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
         .single();
 
       if (error || !q) {
-        // Fallback question
         setQuestion({
           id: "fallback",
           text_en: "Do you trust your government to act in the people's best interest?",
@@ -66,7 +85,6 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
 
       setQuestion(q);
 
-      // Check if user already voted today
       try {
         const deviceId = await getDeviceId();
         const { data: existingVote } = await supabase
@@ -78,12 +96,9 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
 
         if (existingVote) {
           setAlreadyVoted(true);
-          setSelectedOption(existingVote.option_index);
           await fetchVoteCounts(q.id);
         }
-      } catch (e) {
-        // Device ID not available (SSR), continue
-      }
+      } catch (e) {}
 
       setLoading(false);
     }
@@ -91,7 +106,6 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     fetchQuestion();
   }, []);
 
-  // Fetch vote counts for a question
   async function fetchVoteCounts(questionId: string) {
     const { data: votes } = await supabase
       .from("votes")
@@ -101,137 +115,123 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     if (votes) {
       const counts = [0, 0, 0, 0];
       votes.forEach((v) => {
-        if (v.option_index >= 0 && v.option_index <= 3) {
-          counts[v.option_index]++;
-        }
+        if (v.option_index >= 0 && v.option_index <= 3) counts[v.option_index]++;
       });
       setVoteCounts(counts);
       setTotalVotes(votes.length);
     }
   }
 
-  const handleVote = async (index: number) => {
-    if (voted || alreadyVoted) return;
-    setSelectedOption(index);
+  const handleVote = async () => {
+    if (isSubmitting || alreadyVoted) return;
+    setIsSubmitting(true);
+
+    const optionIndex = sliderToOption(sliderValue);
 
     try {
       const deviceId = await getDeviceId();
 
-      // Get user's location
       let location = null;
-      let countryCode = null;
       if (navigator.geolocation) {
         try {
           const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
             navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
           );
           location = `POINT(${pos.coords.longitude} ${pos.coords.latitude})`;
-        } catch {
-          // Location not available, continue without it
-        }
+        } catch {}
       }
 
-      // Sign in anonymously if not already
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        await supabase.auth.signInAnonymously();
-      }
+      if (!session) await supabase.auth.signInAnonymously();
 
-      // Submit vote
       if (question && question.id !== "fallback") {
         const { error } = await supabase.from("votes").insert({
           question_id: question.id,
           device_id: deviceId,
-          option_index: index,
-          location: location,
-          country_code: countryCode,
+          option_index: optionIndex,
+          location,
         });
 
-        if (error) {
-          console.error("Vote error:", error);
-        } else {
-          await fetchVoteCounts(question.id);
-        }
+        if (!error) await fetchVoteCounts(question.id);
       }
     } catch (e) {
-      console.error("Vote submission error:", e);
+      console.error("Vote error:", e);
     }
 
-    setTimeout(() => setVoted(true), 300);
+    setIsSubmitting(false);
+    setVoted(true);
   };
 
   const options = [
-    tr.strongly_agree,
-    tr.agree,
-    tr.disagree,
-    tr.strongly_disagree,
+    { label: tr.strongly_agree, color: "#BFFF00" },
+    { label: tr.agree, color: "#00F5FF" },
+    { label: tr.disagree, color: "#FF6B00" },
+    { label: tr.strongly_disagree, color: "#FF006E" },
   ];
-
-  const optionColors = [
-    "from-green-500 to-green-600",
-    "from-blue-500 to-blue-600",
-    "from-orange-500 to-orange-600",
-    "from-red-500 to-red-600",
-  ];
-
-  const barColors = ["bg-green-500", "bg-blue-500", "bg-orange-500", "bg-red-500"];
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-vox-dark">
-        <div className="text-xl gradient-text font-bold animate-pulse">
-          Loading...
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
+        <div className="font-graffiti text-3xl spray-text animate-flicker">VoxMap</div>
       </div>
     );
   }
 
-  // Show results after voting
+  // Results screen
   if (voted || alreadyVoted) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-vox-dark px-4">
-        <div className="text-center space-y-6 w-full max-w-lg">
-          <div className="text-6xl">{alreadyVoted && !voted ? "📊" : "✓"}</div>
-          <h2 className="text-3xl font-bold gradient-text">
-            {alreadyVoted && !voted ? tr.analytics : tr.thank_you}
-          </h2>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] px-4">
+        <div className="text-center w-full max-w-lg">
           {!alreadyVoted && (
-            <p className="text-2xl text-yellow-400 font-bold">{tr.points}</p>
+            <div className="mb-8 animate-spray">
+              <div className="text-6xl mb-4">{getCurrentEmoji().emoji}</div>
+              <h2 className="font-urban text-2xl neon-glow">{tr.thank_you}</h2>
+              <div className="mt-2">
+                <span className="tape-strip text-sm font-bold">{tr.points}</span>
+              </div>
+            </div>
           )}
 
-          {/* Vote results */}
+          {alreadyVoted && !voted && (
+            <div className="mb-8">
+              <p className="font-urban text-lg text-[#BFFF00]">You already voted today!</p>
+            </div>
+          )}
+
+          {/* Results bars - urban style */}
           {totalVotes > 0 && (
-            <div className="mt-6 space-y-3 text-left">
-              {options.map((option, idx) => {
+            <div className="space-y-4 text-left mb-8">
+              {options.map((opt, idx) => {
                 const pct = totalVotes > 0 ? Math.round((voteCounts[idx] / totalVotes) * 100) : 0;
                 return (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className={selectedOption === idx ? "text-white font-bold" : "text-slate-400"}>
-                        {option} {selectedOption === idx && "← You"}
+                  <div key={idx}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-urban text-xs tracking-wider" style={{ color: opt.color }}>
+                        {opt.label}
                       </span>
-                      <span className="text-slate-400">{pct}%</span>
+                      <span className="font-mono text-zinc-500">{pct}%</span>
                     </div>
-                    <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-6 bg-zinc-900 overflow-hidden" style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))' }}>
                       <div
-                        className={`h-full ${barColors[idx]} rounded-full transition-all duration-1000`}
-                        style={{ width: `${pct}%` }}
+                        className="h-full transition-all duration-1000"
+                        style={{ width: `${pct}%`, backgroundColor: opt.color }}
                       />
                     </div>
                   </div>
                 );
               })}
-              <p className="text-center text-sm text-slate-500 mt-2">
-                {totalVotes} {totalVotes === 1 ? "vote" : "votes"}
+              <p className="text-center font-mono text-xs text-zinc-600 mt-3">
+                {totalVotes} voices heard
               </p>
             </div>
           )}
 
           <button
             onClick={onComplete}
-            className="mt-8 px-8 py-4 rounded-2xl text-lg font-bold text-white
-              bg-gradient-to-r from-orange-500 via-red-500 to-purple-500
-              hover:scale-105 active:scale-95 transition-all duration-300"
+            className="px-8 py-4 font-urban uppercase tracking-wider
+              bg-[#BFFF00] text-black hover:bg-[#00F5FF]
+              transition-all duration-300 active:scale-95"
+            style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}
           >
             {tr.view_map}
           </button>
@@ -240,35 +240,67 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-vox-dark">
-      <div className="w-full max-w-lg">
-        {/* Header */}
-        <p className="text-sm text-slate-400 uppercase tracking-widest mb-2 text-center">
-          {tr.todays_question}
-        </p>
+  // Voting screen with slider
+  const currentMood = getCurrentEmoji();
 
-        {/* Question */}
-        <h2 className="text-2xl md:text-3xl font-bold text-white text-center mb-10 leading-relaxed">
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-[#0A0A0A]">
+      <div className="w-full max-w-lg">
+        {/* Tag label */}
+        <div className="text-center mb-6 animate-spray">
+          <span className="tape-strip text-[10px] font-bold tracking-widest">
+            {tr.todays_question}
+          </span>
+        </div>
+
+        {/* Question - graffiti style */}
+        <h2 className="font-urban text-xl md:text-2xl text-white text-center mb-12 leading-relaxed">
           {question ? getQuestionText(question, lang) : ""}
         </h2>
 
-        {/* Options */}
-        <div className="space-y-4">
-          {options.map((option, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleVote(idx)}
-              className={`w-full py-4 px-6 rounded-xl text-lg font-semibold text-white
-                bg-gradient-to-r ${optionColors[idx]}
-                hover:scale-[1.02] active:scale-[0.98] transition-all duration-200
-                border border-white/10 hover:border-white/20
-                ${selectedOption === idx ? "ring-2 ring-white scale-[1.02]" : ""}`}
-            >
-              {option}
-            </button>
-          ))}
+        {/* Current mood emoji - big and animated */}
+        <div className="text-center mb-6 transition-all duration-300">
+          <span
+            className="text-7xl inline-block animate-bounce-icon"
+            style={{ filter: `drop-shadow(0 0 20px ${currentMood.color})` }}
+          >
+            {currentMood.emoji}
+          </span>
         </div>
+
+        {/* Slider */}
+        <div className="mb-8 px-2">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={sliderValue}
+            onChange={(e) => setSliderValue(parseInt(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+          {/* Labels under slider */}
+          <div className="flex justify-between mt-3">
+            <span className="text-[10px] font-urban tracking-wider text-[#FF006E]">
+              {tr.strongly_disagree}
+            </span>
+            <span className="text-[10px] font-urban tracking-wider text-[#BFFF00]">
+              {tr.strongly_agree}
+            </span>
+          </div>
+        </div>
+
+        {/* Submit button */}
+        <button
+          onClick={handleVote}
+          disabled={isSubmitting}
+          className={`w-full py-5 font-urban text-lg uppercase tracking-wider
+            bg-[#BFFF00] text-black
+            transition-all duration-300 active:scale-95
+            ${isSubmitting ? "opacity-50" : "hover:bg-[#00F5FF]"}`}
+          style={{ clipPath: 'polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px))' }}
+        >
+          {isSubmitting ? "..." : "SUBMIT YOUR VOICE"}
+        </button>
       </div>
     </div>
   );
