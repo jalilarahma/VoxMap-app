@@ -153,9 +153,9 @@ body {
   border-color: #BFFF00;
 }
 
-/* Dark theme for Leaflet map tiles */
+/* Dark theme for Leaflet map tiles — deep navy/teal look */
 .leaflet-tile-pane {
-  filter: brightness(0.5) contrast(1.4) saturate(0.2) hue-rotate(180deg) invert(1);
+  filter: brightness(0.6) contrast(1.2) saturate(0.3) hue-rotate(160deg) invert(1);
 }
 
 /* Leaflet popup urban theme */

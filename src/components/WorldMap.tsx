@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
 
-// SOS Categories - Urban color scheme
+// SOS Categories
 const SOS_CATEGORIES = [
   { id: "danger", icon: "⚠️", color: "#FF006E", anim: "animate-shake-icon" },
   { id: "robbery", icon: "💰", color: "#FF6B00", anim: "animate-pulse-icon" },
@@ -49,7 +49,6 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const markersRef = useRef<any[]>([]);
   const tr = t[lang];
   const [pins, setPins] = useState<Pin[]>([]);
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [showCreatePin, setShowCreatePin] = useState(false);
   const [createStep, setCreateStep] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -58,7 +57,6 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeed, setShowFeed] = useState(false);
-  const [helpedCount, setHelpedCount] = useState(0);
 
   // Get user location on mount
   useEffect(() => {
@@ -71,14 +69,14 @@ export default function WorldMap({ lang }: WorldMapProps) {
           }
         },
         () => {
-          // Location denied — default to Middle East view
+          // Location denied — stay on default Morocco view
         },
         { timeout: 10000 }
       );
     }
   }, []);
 
-  // Fetch pins from Supabase
+  // Fetch pins
   useEffect(() => {
     async function fetchPins() {
       const { data, error } = await supabase
@@ -90,13 +88,11 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
       if (data && !error) {
         setPins(data);
-        setHelpedCount(data.reduce((sum, p) => sum + (p.helpful_count || 0), 0));
       }
     }
 
     fetchPins();
 
-    // Real-time subscription for new pins
     const channel = supabase
       .channel("pins-realtime")
       .on(
@@ -113,14 +109,14 @@ export default function WorldMap({ lang }: WorldMapProps) {
     };
   }, []);
 
-  // Initialize map
+  // Initialize map — centered on Morocco
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
     import("leaflet").then((L) => {
       const map = L.map(mapRef.current!, {
-        center: [25, 45],
-        zoom: 3,
+        center: [31.5, -7.5], // Morocco center
+        zoom: 6,
         zoomControl: false,
         attributionControl: false,
       });
@@ -129,7 +125,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
         maxZoom: 19,
       }).addTo(map);
 
-      L.control.zoom({ position: "topright" }).addTo(map);
+      // Zoom controls — bottom right to avoid overlapping
+      L.control.zoom({ position: "bottomright" }).addTo(map);
 
       mapInstanceRef.current = map;
     });
@@ -142,20 +139,15 @@ export default function WorldMap({ lang }: WorldMapProps) {
     };
   }, []);
 
-  // Update markers when pins or filter changes
+  // Update markers
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     import("leaflet").then((L) => {
-      // Clear existing markers
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
 
-      const filteredPins = activeFilter
-        ? pins.filter((p) => p.category === activeFilter)
-        : pins;
-
-      filteredPins.forEach((pin) => {
+      pins.forEach((pin) => {
         const cat = SOS_CATEGORIES.find((c) => c.id === pin.category);
         if (!cat) return;
 
@@ -194,7 +186,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
         markersRef.current.push(marker);
       });
     });
-  }, [pins, activeFilter, lang]);
+  }, [pins, lang]);
 
   function getTimeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -214,9 +206,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
     try {
       const deviceId = await getDeviceId();
 
-      // Get GPS location
-      let lat = 25 + Math.random() * 20;
-      let lng = 35 + Math.random() * 20;
+      let lat = 31.5 + Math.random() * 4 - 2;
+      let lng = -7.5 + Math.random() * 4 - 2;
 
       if (navigator.geolocation) {
         try {
@@ -226,11 +217,10 @@ export default function WorldMap({ lang }: WorldMapProps) {
           lat = pos.coords.latitude;
           lng = pos.coords.longitude;
         } catch {
-          // Use default if location denied
+          // Use Morocco-area default
         }
       }
 
-      // Sign in anonymously if needed
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         await supabase.auth.signInAnonymously();
@@ -249,9 +239,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
       if (error) {
         console.error("Pin creation error:", error);
-        alert("Error creating pin. Please try again.");
       } else {
-        // Pan map to new pin
         if (mapInstanceRef.current) {
           mapInstanceRef.current.setView([lat, lng], 14);
         }
@@ -274,38 +262,38 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
   return (
     <div className="relative w-full h-screen">
-      {/* Map container */}
+      {/* Map */}
       <div ref={mapRef} className="w-full h-full z-0" />
 
-      {/* Top stats bar - urban style */}
-      <div className="absolute top-4 left-4 right-16 z-[1000] flex gap-2 pointer-events-none">
-        <div className="bg-[#141414]/90 backdrop-blur-sm px-4 py-2 border-l-2 border-[#BFFF00] pointer-events-auto">
+      {/* Minimal top bar — pins count + live feed button */}
+      <div className="absolute top-4 right-4 z-[1000] flex gap-2">
+        <div className="bg-[#141414]/90 backdrop-blur-sm px-3 py-1.5 border-l-2 border-[#BFFF00]">
           <span className="text-[10px] font-urban tracking-wider text-zinc-500">{tr.pins_active}</span>
-          <span className="ml-2 text-lg font-bold text-[#BFFF00]">{pins.length}</span>
-        </div>
-        <div className="bg-[#141414]/90 backdrop-blur-sm px-4 py-2 border-l-2 border-[#00F5FF] pointer-events-auto">
-          <span className="text-[10px] font-urban tracking-wider text-zinc-500">{tr.people_helped}</span>
-          <span className="ml-2 text-lg font-bold text-[#00F5FF]">{helpedCount}</span>
+          <span className="ml-2 text-sm font-bold text-[#BFFF00]">{pins.length}</span>
         </div>
         <button
           onClick={() => setShowFeed(!showFeed)}
-          className="bg-[#141414]/90 backdrop-blur-sm px-4 py-2 border-l-2 border-[#FF006E] pointer-events-auto hover:bg-white/10 transition-all"
+          className="bg-[#141414]/90 backdrop-blur-sm px-3 py-1.5 border-l-2 border-[#FF006E]
+            hover:bg-white/10 transition-all"
         >
-          <span className="text-[10px] font-urban tracking-wider">📡 {tr.live_feed}</span>
+          <span className="text-xs">📡</span>
         </button>
       </div>
 
       {/* Live Feed Panel */}
       {showFeed && (
-        <div className="absolute top-16 right-4 z-[1000] w-72 max-h-80 overflow-y-auto
-          bg-vox-dark-card/95 backdrop-blur-sm rounded-xl border border-vox-dark-border p-3">
-          <h3 className="text-sm font-bold text-white mb-2">📡 {tr.live_feed}</h3>
+        <div className="absolute top-14 right-4 z-[1000] w-72 max-h-80 overflow-y-auto
+          bg-[#141414]/95 backdrop-blur-sm border border-[#2A2A2A] p-3">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-urban text-white">📡 {tr.live_feed}</h3>
+            <button onClick={() => setShowFeed(false)} className="text-zinc-500 hover:text-white text-xs">✕</button>
+          </div>
           {pins.slice(0, 10).map((pin) => {
             const cat = SOS_CATEGORIES.find((c) => c.id === pin.category);
             return (
               <div
                 key={pin.id}
-                className="flex items-center gap-2 py-2 border-b border-vox-dark-border last:border-0 cursor-pointer hover:bg-white/5 rounded px-1"
+                className="flex items-center gap-2 py-2 border-b border-[#2A2A2A] last:border-0 cursor-pointer hover:bg-white/5 rounded px-1"
                 onClick={() => {
                   if (mapInstanceRef.current) {
                     mapInstanceRef.current.setView([pin.lat, pin.lng], 14);
@@ -319,7 +307,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
                     {tr[pin.category as keyof typeof tr] || pin.category}
                     {pin.city && ` — ${pin.city}`}
                   </p>
-                  <p className="text-[10px] text-slate-500">{getTimeAgo(pin.created_at)}</p>
+                  <p className="text-[10px] text-zinc-600">{getTimeAgo(pin.created_at)}</p>
                 </div>
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
@@ -329,54 +317,32 @@ export default function WorldMap({ lang }: WorldMapProps) {
             );
           })}
           {pins.length === 0 && (
-            <p className="text-xs text-slate-500 text-center py-4">No active pins yet. Be the first!</p>
+            <p className="text-xs text-zinc-600 text-center py-4">No active pins yet</p>
           )}
         </div>
       )}
 
-      {/* Category filter bar - urban style */}
-      <div className="absolute bottom-24 left-0 right-0 z-[1000] px-4">
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {SOS_CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveFilter(activeFilter === cat.id ? null : cat.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-urban tracking-wider whitespace-nowrap
-                transition-all border-l-2
-                ${activeFilter === cat.id
-                  ? "bg-white/15 text-white"
-                  : "bg-[#141414]/80 text-zinc-400 hover:text-white"
-                }`}
-              style={{ borderLeftColor: cat.color }}
-            >
-              <span className={cat.anim}>{cat.icon}</span>
-              <span>{tr[cat.id as keyof typeof tr] || cat.id}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* SOS Button - urban style */}
+      {/* SOS Button — clean, bottom center */}
       <button
         onClick={() => setShowCreatePin(true)}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]
-          px-10 py-4 text-lg font-urban uppercase tracking-wider text-black
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000]
+          px-8 py-3 text-sm font-urban uppercase tracking-wider text-black
           bg-[#FF006E] hover:bg-[#BFFF00]
           active:scale-95 transition-all duration-200
           shadow-lg shadow-[#FF006E]/30"
-        style={{ clipPath: 'polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px))' }}
+        style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}
       >
         🆘 {tr.emergency}
       </button>
 
-      {/* Create Pin Modal */}
+      {/* Create Pin Modal — categories only appear here */}
       {showCreatePin && (
         <div className="absolute inset-0 z-[2000] bg-black/70 flex items-end">
           <div className="w-full bg-[#141414] p-6 max-h-[80vh] overflow-y-auto border-t-2 border-[#FF006E]">
-            {/* Step 0: Category */}
+            {/* Step 0: Category selection */}
             {createStep === 0 && (
               <>
-                <h3 className="text-xl font-urban tracking-wider mb-4">{tr.select_category}</h3>
+                <h3 className="text-lg font-urban tracking-wider mb-4">{tr.select_category}</h3>
                 <div className="grid grid-cols-3 gap-3">
                   {SOS_CATEGORIES.map((cat) => (
                     <button
@@ -385,9 +351,9 @@ export default function WorldMap({ lang }: WorldMapProps) {
                         setSelectedCategory(cat.id);
                         setCreateStep(1);
                       }}
-                      className="sticker flex flex-col items-center gap-2 p-4
-                        hover:border-[#BFFF00] transition-all"
-                      style={{ ['--rotate' as any]: `${Math.random() * 4 - 2}deg` }}
+                      className="flex flex-col items-center gap-2 p-4 bg-[#0A0A0A]
+                        border border-[#2A2A2A] hover:border-[#BFFF00] transition-all"
+                      style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))' }}
                     >
                       <span className={`text-2xl ${cat.anim}`}>{cat.icon}</span>
                       <span className="text-[10px] font-urban tracking-wider" style={{ color: cat.color }}>
@@ -402,7 +368,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
             {/* Step 1: Urgency */}
             {createStep === 1 && (
               <>
-                <h3 className="text-xl font-urban tracking-wider mb-4">{tr.select_urgency}</h3>
+                <h3 className="text-lg font-urban tracking-wider mb-4">{tr.select_urgency}</h3>
                 <div className="space-y-3">
                   {URGENCY_LEVELS.map((urg) => (
                     <button
@@ -411,8 +377,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
                         setSelectedUrgency(urg.id);
                         setCreateStep(2);
                       }}
-                      className="w-full py-4 px-6 rounded-xl text-left font-semibold
-                        border border-vox-dark-border bg-vox-dark/50
+                      className="w-full py-4 px-6 text-left font-urban
+                        border border-[#2A2A2A] bg-[#0A0A0A]
                         hover:bg-white/5 transition-all"
                       style={{ borderLeftColor: urg.color, borderLeftWidth: 4 }}
                     >
@@ -428,23 +394,23 @@ export default function WorldMap({ lang }: WorldMapProps) {
             {/* Step 2: Note + Submit */}
             {createStep === 2 && (
               <>
-                <h3 className="text-xl font-urban tracking-wider mb-4">{tr.add_note}</h3>
+                <h3 className="text-lg font-urban tracking-wider mb-4">{tr.add_note}</h3>
                 <textarea
                   value={pinNote}
                   onChange={(e) => setPinNote(e.target.value)}
-                  className="w-full h-32 bg-vox-dark rounded-xl p-4 text-white
-                    border border-vox-dark-border focus:border-orange-500
-                    focus:outline-none resize-none"
+                  className="w-full h-28 bg-[#0A0A0A] p-4 text-white
+                    border border-[#2A2A2A] focus:border-[#FF006E]
+                    focus:outline-none resize-none font-urban text-sm"
                   placeholder="..."
                   maxLength={280}
                 />
                 <button
                   onClick={handleSubmitPin}
                   disabled={isSubmitting}
-                  className={`w-full mt-4 py-4 rounded-xl text-lg font-bold text-white
-                    bg-gradient-to-r from-red-600 to-orange-500
-                    active:scale-95 transition-all
-                    ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:from-red-500 hover:to-orange-400"}`}
+                  className={`w-full mt-4 py-4 text-sm font-urban uppercase tracking-wider text-black
+                    bg-[#FF006E] active:scale-95 transition-all
+                    ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:bg-[#BFFF00]"}`}
+                  style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}
                 >
                   {isSubmitting ? "..." : tr.confirm_pin}
                 </button>
@@ -456,16 +422,16 @@ export default function WorldMap({ lang }: WorldMapProps) {
               {createStep > 0 && (
                 <button
                   onClick={() => setCreateStep(createStep - 1)}
-                  className="flex-1 py-3 rounded-xl text-slate-400 border border-vox-dark-border
-                    hover:bg-white/5 transition-all"
+                  className="flex-1 py-3 text-zinc-500 border border-[#2A2A2A]
+                    hover:bg-white/5 transition-all text-sm font-urban"
                 >
                   {tr.back}
                 </button>
               )}
               <button
                 onClick={resetCreate}
-                className="flex-1 py-3 rounded-xl text-slate-400 border border-vox-dark-border
-                  hover:bg-white/5 transition-all"
+                className="flex-1 py-3 text-zinc-500 border border-[#2A2A2A]
+                  hover:bg-white/5 transition-all text-sm font-urban"
               >
                 {tr.cancel}
               </button>
