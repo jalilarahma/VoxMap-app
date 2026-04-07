@@ -219,9 +219,16 @@ export default function WorldMap({ lang }: WorldMapProps) {
         } catch {}
       }
 
+      // Must be authenticated to insert (RLS policy)
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        await supabase.auth.signInAnonymously();
+        const { error: authError } = await supabase.auth.signInAnonymously();
+        if (authError) {
+          console.error("Auth error:", authError);
+          alert("Authentication failed. Please try again.");
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       const { error } = await supabase.from("pins").insert({
