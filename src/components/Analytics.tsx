@@ -9,10 +9,10 @@ interface AnalyticsProps {
   onClose: () => void;
 }
 
-// Analytics are revealed every Sunday (day 0)
+// Analytics revealed every Sunday
 function getAnalyticsAvailability(): { available: boolean; daysLeft: number; nextDay: string } {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
+  const day = now.getDay();
   if (day === 0) {
     return { available: true, daysLeft: 0, nextDay: "Sunday" };
   }
@@ -87,10 +87,10 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
   }, [available]);
 
   const options = [
-    { label: tr.strongly_agree, color: "#BFFF00" },
-    { label: tr.agree, color: "#00F5FF" },
-    { label: tr.disagree, color: "#FF6B00" },
-    { label: tr.strongly_disagree, color: "#FF006E" },
+    { label: tr.strongly_agree, color: "#22C55E" },
+    { label: tr.agree, color: "#3B82F6" },
+    { label: tr.disagree, color: "#F97316" },
+    { label: tr.strongly_disagree, color: "#EF4444" },
   ];
 
   const categoryIcons: Record<string, string> = {
@@ -102,39 +102,34 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
   if (loading) {
     return (
       <div className="fixed inset-0 z-[3000] bg-black/80 flex items-center justify-center">
-        <div className="text-lg font-urban spray-text animate-pulse">Loading...</div>
+        <div className="text-lg gradient-text font-bold animate-pulse">Loading...</div>
       </div>
     );
   }
 
   return (
     <div className="fixed inset-0 z-[3000] bg-black/80 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-[#141414] border-l-2 border-[#BFFF00] p-6">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-slate-900 rounded-2xl border border-slate-700/50 p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-urban tracking-wider spray-text">{tr.analytics}</h2>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-[#FF006E] text-lg transition-colors"
-          >
-            ✕
-          </button>
+          <h2 className="text-2xl font-bold gradient-text">{tr.analytics}</h2>
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl transition-colors">✕</button>
         </div>
 
         {/* Weekly countdown or results */}
         {!available ? (
           <div className="text-center py-12">
             <div className="text-5xl mb-6">🗓️</div>
-            <h3 className="font-urban text-lg text-white mb-3">
+            <h3 className="text-xl font-bold text-white mb-3">
               Results drop every Sunday
             </h3>
-            <p className="text-zinc-400 text-sm mb-6">
-              See how the world voted — come back on <span className="text-[#BFFF00]">{nextDay}</span>
+            <p className="text-slate-400 mb-6">
+              See how the world voted — come back on <span className="text-orange-400 font-semibold">{nextDay}</span>
             </p>
-            <div className="inline-flex items-center gap-2 bg-[#0A0A0A] border border-[#2A2A2A] px-6 py-3">
-              <span className="text-3xl font-urban text-[#BFFF00]">{daysLeft}</span>
-              <span className="text-xs text-zinc-500 font-urban tracking-wider">
-                {daysLeft === 1 ? "DAY LEFT" : "DAYS LEFT"}
+            <div className="inline-flex items-center gap-3 bg-slate-800 rounded-2xl border border-slate-700/50 px-6 py-4">
+              <span className="text-4xl font-black text-orange-400">{daysLeft}</span>
+              <span className="text-sm text-slate-500">
+                {daysLeft === 1 ? "day left" : "days left"}
               </span>
             </div>
           </div>
@@ -142,34 +137,33 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
           <>
             {/* Poll Results */}
             <div className="mb-8">
-              <h3 className="text-xs text-zinc-500 uppercase tracking-wider mb-4 font-urban">
+              <h3 className="text-sm text-slate-400 uppercase tracking-wider mb-4">
                 {tr.todays_question} — {tr.global_results}
               </h3>
 
               {totalVotes === 0 ? (
-                <p className="text-zinc-600 text-center py-4 text-sm">No votes yet</p>
+                <p className="text-slate-500 text-center py-4">No votes yet</p>
               ) : (
                 <div className="space-y-3">
                   {options.map((opt, idx) => {
                     const pct = totalVotes > 0 ? Math.round((results[idx] / totalVotes) * 100) : 0;
                     return (
                       <div key={idx} className="space-y-1">
-                        <div className="flex justify-between text-xs">
+                        <div className="flex justify-between text-sm">
                           <span style={{ color: opt.color }}>{opt.label}</span>
-                          <span className="text-zinc-600 font-mono">{results[idx]} ({pct}%)</span>
+                          <span className="text-slate-500">{results[idx]} ({pct}%)</span>
                         </div>
-                        <div className="w-full h-4 bg-[#0A0A0A] overflow-hidden"
-                          style={{ clipPath: 'polygon(0 0, calc(100% - 2px) 0, 100% 2px, 100% 100%, 2px 100%, 0 calc(100% - 2px))' }}>
+                        <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
                           <div
-                            className="h-full transition-all duration-1000"
+                            className="h-full rounded-full transition-all duration-1000"
                             style={{ width: `${pct}%`, backgroundColor: opt.color }}
                           />
                         </div>
                       </div>
                     );
                   })}
-                  <p className="text-center text-xs text-zinc-600 mt-2 font-mono">
-                    {totalVotes} voices
+                  <p className="text-center text-sm text-slate-500 mt-2">
+                    {totalVotes} {totalVotes === 1 ? "vote" : "votes"}
                   </p>
                 </div>
               )}
@@ -177,12 +171,12 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
 
             {/* Pin Stats */}
             <div className="mb-6">
-              <h3 className="text-xs text-zinc-500 uppercase tracking-wider mb-4 font-urban">
+              <h3 className="text-sm text-slate-400 uppercase tracking-wider mb-4">
                 Emergency Pins — {totalPins} active
               </h3>
 
               {totalPins === 0 ? (
-                <p className="text-zinc-600 text-center py-4 text-sm">No active pins</p>
+                <p className="text-slate-500 text-center py-4">No active pins</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {Object.entries(pinsByCategory)
@@ -190,11 +184,11 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
                     .map(([cat, count]) => (
                       <div
                         key={cat}
-                        className="flex items-center gap-2 bg-[#0A0A0A] p-3 border border-[#2A2A2A]"
+                        className="flex items-center gap-2 bg-slate-800 rounded-xl p-3 border border-slate-700/50"
                       >
                         <span className="text-lg">{categoryIcons[cat] || "📍"}</span>
                         <div>
-                          <p className="text-[10px] text-zinc-500 font-urban">
+                          <p className="text-[10px] text-slate-500">
                             {tr[cat as keyof typeof tr] || cat}
                           </p>
                           <p className="text-lg font-bold text-white">{count}</p>
@@ -210,10 +204,10 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
         {/* Close */}
         <button
           onClick={onClose}
-          className="w-full py-3 text-zinc-500 border border-[#2A2A2A]
-            hover:bg-white/5 transition-all text-sm font-urban mt-2"
+          className="w-full py-3 rounded-xl text-slate-400 border border-slate-700/50
+            hover:bg-white/5 transition-all mt-2"
         >
-          {tr.cancel}
+          Close
         </button>
       </div>
     </div>

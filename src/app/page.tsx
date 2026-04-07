@@ -8,14 +8,11 @@ import LanguagePicker from "@/components/LanguagePicker";
 import Analytics from "@/components/Analytics";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
-// Dynamically import map (needs window/document)
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
   ssr: false,
   loading: () => (
-    <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
-      <div className="text-xl font-urban spray-text animate-pulse">
-        Loading Map...
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-[#020617]">
+      <div className="text-xl gradient-text font-bold animate-pulse">Loading Map...</div>
     </div>
   ),
 });
@@ -47,10 +44,9 @@ export default function Home() {
           {/* Analytics button — bottom left, subtle */}
           <button
             onClick={() => setShowAnalytics(true)}
-            className="fixed bottom-8 right-4 z-[1500] w-10 h-10 flex items-center justify-center
-              bg-[#141414]/90 backdrop-blur-sm border border-[#2A2A2A]
-              hover:border-[#BFFF00] transition-all text-sm"
-            style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))' }}
+            className="fixed bottom-8 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+              rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+              hover:border-orange-400 transition-all text-sm"
           >
             📊
           </button>

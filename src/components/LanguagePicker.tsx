@@ -17,7 +17,6 @@ export default function LanguagePicker({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -32,19 +31,16 @@ export default function LanguagePicker({
     <div ref={ref} className="fixed top-4 left-4 z-[3000]">
       <button
         onClick={() => setOpen(!open)}
-        className="w-10 h-10 flex items-center justify-center
-          bg-[#141414]/90 backdrop-blur-sm border border-[#2A2A2A]
-          hover:border-[#BFFF00] transition-all text-lg"
-        style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))' }}
+        className="w-10 h-10 flex items-center justify-center rounded-xl
+          bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+          hover:border-orange-400 transition-all text-lg"
       >
         🌍
       </button>
 
       {open && (
-        <div className="absolute top-12 left-0 bg-[#141414]/95 backdrop-blur-sm
-          border border-[#2A2A2A] overflow-hidden animate-spray"
-          style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))' }}
-        >
+        <div className="absolute top-12 left-0 bg-slate-900/95 backdrop-blur-sm
+          rounded-xl border border-slate-700/50 overflow-hidden shadow-xl">
           {LANGS.map((lang) => (
             <button
               key={lang}
@@ -52,12 +48,12 @@ export default function LanguagePicker({
                 onChangeLang(lang);
                 setOpen(false);
               }}
-              className={`block w-full px-4 py-2 text-xs font-urban tracking-wider text-left
+              className={`block w-full px-4 py-2.5 text-sm text-left
                 transition-all whitespace-nowrap
                 ${
                   currentLang === lang
-                    ? "bg-[#BFFF00] text-black"
-                    : "text-zinc-400 hover:bg-white/10 hover:text-[#BFFF00]"
+                    ? "bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold"
+                    : "text-slate-400 hover:bg-white/10 hover:text-white"
                 }`}
             >
               {LANG_LABELS[lang]}

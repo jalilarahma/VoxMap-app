@@ -2,213 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Russo+One&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
 :root {
-  --vox-lime: #BFFF00;
-  --vox-magenta: #FF006E;
-  --vox-cyan: #00F5FF;
-  --vox-orange: #FF6B00;
-  --vox-dark: #0A0A0A;
-  --vox-dark-card: #141414;
-  --vox-dark-border: #2A2A2A;
+  --vox-orange: #F59E0B;
+  --vox-red: #EF4444;
+  --vox-purple: #8B5CF6;
+  --vox-dark: #020617;
+  --vox-dark-card: #0F172A;
+  --vox-dark-border: #1E293B;
 }
 
 body {
   background: var(--vox-dark);
   color: white;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* ═══ URBAN / STREET ART THEME ═══ */
-
-/* Graffiti title font */
-.font-graffiti {
-  font-family: 'Permanent Marker', cursive;
-}
-
-/* Bold heading font */
-.font-urban {
-  font-family: 'Russo One', sans-serif;
-}
-
-/* Spray paint gradient text */
-.spray-text {
-  background: linear-gradient(135deg, #BFFF00, #00F5FF, #FF006E);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Neon glow effect */
-.neon-glow {
-  text-shadow: 0 0 10px #BFFF0080, 0 0 30px #BFFF0040, 0 0 60px #BFFF0020;
-}
-
-.neon-glow-magenta {
-  text-shadow: 0 0 10px #FF006E80, 0 0 30px #FF006E40, 0 0 60px #FF006E20;
-}
-
-.neon-glow-cyan {
-  text-shadow: 0 0 10px #00F5FF80, 0 0 30px #00F5FF40, 0 0 60px #00F5FF20;
-}
-
-/* Grunge border effect */
-.grunge-border {
-  border: 2px solid transparent;
-  border-image: linear-gradient(135deg, #BFFF00, #FF006E, #00F5FF) 1;
-}
-
-/* Animated pulse for icons */
-@keyframes icon-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
-
-@keyframes icon-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-
-@keyframes icon-glow {
-  0%, 100% { filter: drop-shadow(0 0 4px currentColor); }
-  50% { filter: drop-shadow(0 0 12px currentColor); }
-}
-
-@keyframes icon-shake {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-5deg); }
-  75% { transform: rotate(5deg); }
-}
-
-@keyframes spray-in {
-  0% { opacity: 0; transform: scale(0.5) rotate(-10deg); filter: blur(10px); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0); }
-}
-
-@keyframes drip {
-  0% { transform: translateY(-20px); opacity: 0; }
-  60% { opacity: 1; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes glitch {
-  0%, 100% { transform: translate(0); }
-  20% { transform: translate(-2px, 2px); }
-  40% { transform: translate(2px, -2px); }
-  60% { transform: translate(-1px, -1px); }
-  80% { transform: translate(1px, 1px); }
-}
-
-@keyframes flicker {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
-  52% { opacity: 1; }
-  54% { opacity: 0.9; }
-}
-
-.animate-pulse-icon { animation: icon-pulse 2s ease-in-out infinite; }
-.animate-bounce-icon { animation: icon-bounce 1.5s ease-in-out infinite; }
-.animate-glow-icon { animation: icon-glow 2s ease-in-out infinite; }
-.animate-shake-icon { animation: icon-shake 0.5s ease-in-out infinite; }
-.animate-spray { animation: spray-in 0.6s ease-out forwards; }
-.animate-drip { animation: drip 0.8s ease-out forwards; }
-.animate-glitch { animation: glitch 0.3s ease-in-out; }
-.animate-flicker { animation: flicker 3s ease-in-out infinite; }
-
-/* Noise texture overlay */
-.noise-bg {
-  position: relative;
-}
-.noise-bg::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Tape strip decoration */
-.tape-strip {
-  background: #BFFF00;
-  color: #0A0A0A;
-  transform: rotate(-2deg);
-  font-family: 'Russo One', sans-serif;
-  padding: 4px 16px;
-  display: inline-block;
-}
-
-/* Sticker style */
-.sticker {
-  background: #141414;
-  border: 2px solid #2A2A2A;
-  border-radius: 4px;
-  transform: rotate(var(--rotate, -1deg));
-  transition: all 0.2s;
-}
-.sticker:hover {
-  transform: rotate(0deg) scale(1.05);
-  border-color: #BFFF00;
-}
-
-/* Dark theme for Leaflet map tiles — deep navy/teal look */
+/* Dark theme for Leaflet map tiles */
 .leaflet-tile-pane {
   filter: brightness(0.6) contrast(1.2) saturate(0.3) hue-rotate(160deg) invert(1);
 }
 
-/* Leaflet popup urban theme */
-.leaflet-popup-content-wrapper {
-  background: #141414 !important;
-  color: white !important;
-  border: 2px solid #BFFF00 !important;
-  border-radius: 4px !important;
-  font-family: 'Space Grotesk', sans-serif !important;
-}
-.leaflet-popup-tip {
-  background: #141414 !important;
-  border: 1px solid #BFFF00 !important;
-}
-
-/* Custom scrollbar - urban */
+/* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0A0A0A; }
-::-webkit-scrollbar-thumb { background: #BFFF00; border-radius: 0; }
+::-webkit-scrollbar-track { background: #0F172A; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 
 /* RTL support */
 [dir="rtl"] { text-align: right; }
 
-/* Slider track styling */
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 8px;
-  border-radius: 0;
-  outline: none;
-  background: linear-gradient(to right, #FF006E, #FF6B00, #BFFF00, #00F5FF);
+/* Leaflet popup dark theme */
+.leaflet-popup-content-wrapper {
+  background: #0F172A !important;
+  color: white !important;
+  border: 1px solid #1E293B !important;
+  border-radius: 12px !important;
+}
+.leaflet-popup-tip {
+  background: #0F172A !important;
 }
 
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 32px;
-  height: 32px;
-  background: white;
-  border: 3px solid #BFFF00;
-  border-radius: 0;
-  cursor: pointer;
-  transform: rotate(45deg);
-  box-shadow: 0 0 15px #BFFF0060;
+/* Glow animations */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.5); }
 }
 
-input[type="range"]::-moz-range-thumb {
-  width: 32px;
-  height: 32px;
-  background: white;
-  border: 3px solid #BFFF00;
-  border-radius: 0;
-  cursor: pointer;
-  box-shadow: 0 0 15px #BFFF0060;
+.glow-border {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #F59E0B, #EF4444, #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

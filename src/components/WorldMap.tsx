@@ -4,20 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
 
-// SOS Categories
+// SOS Categories — original clean colors
 const SOS_CATEGORIES = [
-  { id: "danger", icon: "⚠️", color: "#FF006E", anim: "animate-shake-icon" },
-  { id: "robbery", icon: "💰", color: "#FF6B00", anim: "animate-pulse-icon" },
-  { id: "assault", icon: "🤛", color: "#FF006E", anim: "animate-shake-icon" },
-  { id: "medical", icon: "🏥", color: "#00F5FF", anim: "animate-pulse-icon" },
-  { id: "fire", icon: "🔥", color: "#FF6B00", anim: "animate-glow-icon" },
-  { id: "trapped", icon: "🚧", color: "#BFFF00", anim: "animate-bounce-icon" },
-  { id: "flood", icon: "🌊", color: "#00F5FF", anim: "animate-bounce-icon" },
-  { id: "shooting", icon: "🔫", color: "#FF006E", anim: "animate-shake-icon" },
-  { id: "missing", icon: "👤", color: "#C084FC", anim: "animate-pulse-icon" },
-  { id: "safe", icon: "✅", color: "#BFFF00", anim: "animate-glow-icon" },
-  { id: "help", icon: "🆘", color: "#FF006E", anim: "animate-shake-icon" },
-  { id: "info", icon: "ℹ️", color: "#00F5FF", anim: "animate-pulse-icon" },
+  { id: "danger", icon: "⚠️", color: "#EF4444" },
+  { id: "robbery", icon: "💰", color: "#F59E0B" },
+  { id: "assault", icon: "🤛", color: "#DC2626" },
+  { id: "medical", icon: "🏥", color: "#10B981" },
+  { id: "fire", icon: "🔥", color: "#F97316" },
+  { id: "trapped", icon: "🚧", color: "#8B5CF6" },
+  { id: "flood", icon: "🌊", color: "#3B82F6" },
+  { id: "shooting", icon: "🔫", color: "#991B1B" },
+  { id: "missing", icon: "👤", color: "#6366F1" },
+  { id: "safe", icon: "✅", color: "#22C55E" },
+  { id: "help", icon: "🆘", color: "#E11D48" },
+  { id: "info", icon: "ℹ️", color: "#0EA5E9" },
 ];
 
 const URGENCY_LEVELS = [
@@ -57,8 +57,9 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeed, setShowFeed] = useState(false);
+  const [helpedCount, setHelpedCount] = useState(0);
 
-  // Get user location on mount
+  // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -68,9 +69,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
             mapInstanceRef.current.setView([pos.coords.latitude, pos.coords.longitude], 12);
           }
         },
-        () => {
-          // Location denied — stay on default Morocco view
-        },
+        () => {},
         { timeout: 10000 }
       );
     }
@@ -88,6 +87,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
       if (data && !error) {
         setPins(data);
+        setHelpedCount(data.reduce((sum, p) => sum + (p.helpful_count || 0), 0));
       }
     }
 
@@ -115,7 +115,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
     import("leaflet").then((L) => {
       const map = L.map(mapRef.current!, {
-        center: [31.5, -7.5], // Morocco center
+        center: [31.5, -7.5], // Morocco
         zoom: 6,
         zoomControl: false,
         attributionControl: false,
@@ -125,7 +125,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
         maxZoom: 19,
       }).addTo(map);
 
-      // Zoom controls — bottom right to avoid overlapping
+      // Zoom controls bottom-right — away from everything
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
       mapInstanceRef.current = map;
@@ -198,7 +198,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
     return `${Math.floor(hours / 24)}d ago`;
   }
 
-  // Submit a new pin
+  // Submit pin
   const handleSubmitPin = async () => {
     if (!selectedCategory || !selectedUrgency || isSubmitting) return;
     setIsSubmitting(true);
@@ -216,9 +216,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
           );
           lat = pos.coords.latitude;
           lng = pos.coords.longitude;
-        } catch {
-          // Use Morocco-area default
-        }
+        } catch {}
       }
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -265,15 +263,19 @@ export default function WorldMap({ lang }: WorldMapProps) {
       {/* Map */}
       <div ref={mapRef} className="w-full h-full z-0" />
 
-      {/* Minimal top bar — pins count + live feed button */}
+      {/* Top-right stats — small, no overlap with zoom (zoom is bottom-right) */}
       <div className="absolute top-4 right-4 z-[1000] flex gap-2">
-        <div className="bg-[#141414]/90 backdrop-blur-sm px-3 py-1.5 border-l-2 border-[#BFFF00]">
-          <span className="text-[10px] font-urban tracking-wider text-zinc-500">{tr.pins_active}</span>
-          <span className="ml-2 text-sm font-bold text-[#BFFF00]">{pins.length}</span>
+        <div className="bg-slate-900/90 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-slate-700/50">
+          <span className="text-[10px] text-slate-400">{tr.pins_active}</span>
+          <span className="ml-1.5 text-sm font-bold text-orange-400">{pins.length}</span>
+        </div>
+        <div className="bg-slate-900/90 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-slate-700/50">
+          <span className="text-[10px] text-slate-400">{tr.people_helped}</span>
+          <span className="ml-1.5 text-sm font-bold text-green-400">{helpedCount}</span>
         </div>
         <button
           onClick={() => setShowFeed(!showFeed)}
-          className="bg-[#141414]/90 backdrop-blur-sm px-3 py-1.5 border-l-2 border-[#FF006E]
+          className="bg-slate-900/90 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-slate-700/50
             hover:bg-white/10 transition-all"
         >
           <span className="text-xs">📡</span>
@@ -283,17 +285,17 @@ export default function WorldMap({ lang }: WorldMapProps) {
       {/* Live Feed Panel */}
       {showFeed && (
         <div className="absolute top-14 right-4 z-[1000] w-72 max-h-80 overflow-y-auto
-          bg-[#141414]/95 backdrop-blur-sm border border-[#2A2A2A] p-3">
+          bg-slate-900/95 backdrop-blur-sm rounded-xl border border-slate-700/50 p-3">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-urban text-white">📡 {tr.live_feed}</h3>
-            <button onClick={() => setShowFeed(false)} className="text-zinc-500 hover:text-white text-xs">✕</button>
+            <h3 className="text-sm font-bold text-white">📡 {tr.live_feed}</h3>
+            <button onClick={() => setShowFeed(false)} className="text-slate-500 hover:text-white text-xs">✕</button>
           </div>
           {pins.slice(0, 10).map((pin) => {
             const cat = SOS_CATEGORIES.find((c) => c.id === pin.category);
             return (
               <div
                 key={pin.id}
-                className="flex items-center gap-2 py-2 border-b border-[#2A2A2A] last:border-0 cursor-pointer hover:bg-white/5 rounded px-1"
+                className="flex items-center gap-2 py-2 border-b border-slate-700/50 last:border-0 cursor-pointer hover:bg-white/5 rounded px-1"
                 onClick={() => {
                   if (mapInstanceRef.current) {
                     mapInstanceRef.current.setView([pin.lat, pin.lng], 14);
@@ -307,7 +309,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
                     {tr[pin.category as keyof typeof tr] || pin.category}
                     {pin.city && ` — ${pin.city}`}
                   </p>
-                  <p className="text-[10px] text-zinc-600">{getTimeAgo(pin.created_at)}</p>
+                  <p className="text-[10px] text-slate-500">{getTimeAgo(pin.created_at)}</p>
                 </div>
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
@@ -317,7 +319,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
             );
           })}
           {pins.length === 0 && (
-            <p className="text-xs text-zinc-600 text-center py-4">No active pins yet</p>
+            <p className="text-xs text-slate-500 text-center py-4">No active pins yet</p>
           )}
         </div>
       )}
@@ -326,23 +328,23 @@ export default function WorldMap({ lang }: WorldMapProps) {
       <button
         onClick={() => setShowCreatePin(true)}
         className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000]
-          px-8 py-3 text-sm font-urban uppercase tracking-wider text-black
-          bg-[#FF006E] hover:bg-[#BFFF00]
+          px-8 py-4 rounded-2xl text-lg font-bold text-white
+          bg-gradient-to-r from-red-600 to-red-500
+          hover:from-red-500 hover:to-red-400
           active:scale-95 transition-all duration-200
-          shadow-lg shadow-[#FF006E]/30"
-        style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}
+          shadow-lg shadow-red-500/30"
       >
         🆘 {tr.emergency}
       </button>
 
-      {/* Create Pin Modal — categories only appear here */}
+      {/* Create Pin Modal — categories ONLY appear here */}
       {showCreatePin && (
         <div className="absolute inset-0 z-[2000] bg-black/70 flex items-end">
-          <div className="w-full bg-[#141414] p-6 max-h-[80vh] overflow-y-auto border-t-2 border-[#FF006E]">
-            {/* Step 0: Category selection */}
+          <div className="w-full bg-slate-900 rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto border-t border-slate-700/50">
+            {/* Step 0: Category */}
             {createStep === 0 && (
               <>
-                <h3 className="text-lg font-urban tracking-wider mb-4">{tr.select_category}</h3>
+                <h3 className="text-xl font-bold mb-4">{tr.select_category}</h3>
                 <div className="grid grid-cols-3 gap-3">
                   {SOS_CATEGORIES.map((cat) => (
                     <button
@@ -351,12 +353,12 @@ export default function WorldMap({ lang }: WorldMapProps) {
                         setSelectedCategory(cat.id);
                         setCreateStep(1);
                       }}
-                      className="flex flex-col items-center gap-2 p-4 bg-[#0A0A0A]
-                        border border-[#2A2A2A] hover:border-[#BFFF00] transition-all"
-                      style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))' }}
+                      className="flex flex-col items-center gap-2 p-4 rounded-xl border
+                        border-slate-700/50 bg-slate-800/50 hover:bg-white/5
+                        transition-all hover:scale-105"
                     >
-                      <span className={`text-2xl ${cat.anim}`}>{cat.icon}</span>
-                      <span className="text-[10px] font-urban tracking-wider" style={{ color: cat.color }}>
+                      <span className="text-2xl">{cat.icon}</span>
+                      <span className="text-xs" style={{ color: cat.color }}>
                         {tr[cat.id as keyof typeof tr] || cat.id}
                       </span>
                     </button>
@@ -368,7 +370,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
             {/* Step 1: Urgency */}
             {createStep === 1 && (
               <>
-                <h3 className="text-lg font-urban tracking-wider mb-4">{tr.select_urgency}</h3>
+                <h3 className="text-xl font-bold mb-4">{tr.select_urgency}</h3>
                 <div className="space-y-3">
                   {URGENCY_LEVELS.map((urg) => (
                     <button
@@ -377,8 +379,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
                         setSelectedUrgency(urg.id);
                         setCreateStep(2);
                       }}
-                      className="w-full py-4 px-6 text-left font-urban
-                        border border-[#2A2A2A] bg-[#0A0A0A]
+                      className="w-full py-4 px-6 rounded-xl text-left font-semibold
+                        border border-slate-700/50 bg-slate-800/50
                         hover:bg-white/5 transition-all"
                       style={{ borderLeftColor: urg.color, borderLeftWidth: 4 }}
                     >
@@ -394,23 +396,23 @@ export default function WorldMap({ lang }: WorldMapProps) {
             {/* Step 2: Note + Submit */}
             {createStep === 2 && (
               <>
-                <h3 className="text-lg font-urban tracking-wider mb-4">{tr.add_note}</h3>
+                <h3 className="text-xl font-bold mb-4">{tr.add_note}</h3>
                 <textarea
                   value={pinNote}
                   onChange={(e) => setPinNote(e.target.value)}
-                  className="w-full h-28 bg-[#0A0A0A] p-4 text-white
-                    border border-[#2A2A2A] focus:border-[#FF006E]
-                    focus:outline-none resize-none font-urban text-sm"
+                  className="w-full h-32 bg-slate-800 rounded-xl p-4 text-white
+                    border border-slate-700/50 focus:border-orange-500
+                    focus:outline-none resize-none"
                   placeholder="..."
                   maxLength={280}
                 />
                 <button
                   onClick={handleSubmitPin}
                   disabled={isSubmitting}
-                  className={`w-full mt-4 py-4 text-sm font-urban uppercase tracking-wider text-black
-                    bg-[#FF006E] active:scale-95 transition-all
-                    ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:bg-[#BFFF00]"}`}
-                  style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}
+                  className={`w-full mt-4 py-4 rounded-xl text-lg font-bold text-white
+                    bg-gradient-to-r from-red-600 to-orange-500
+                    active:scale-95 transition-all
+                    ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:from-red-500 hover:to-orange-400"}`}
                 >
                   {isSubmitting ? "..." : tr.confirm_pin}
                 </button>
@@ -422,16 +424,16 @@ export default function WorldMap({ lang }: WorldMapProps) {
               {createStep > 0 && (
                 <button
                   onClick={() => setCreateStep(createStep - 1)}
-                  className="flex-1 py-3 text-zinc-500 border border-[#2A2A2A]
-                    hover:bg-white/5 transition-all text-sm font-urban"
+                  className="flex-1 py-3 rounded-xl text-slate-400 border border-slate-700/50
+                    hover:bg-white/5 transition-all"
                 >
                   {tr.back}
                 </button>
               )}
               <button
                 onClick={resetCreate}
-                className="flex-1 py-3 text-zinc-500 border border-[#2A2A2A]
-                  hover:bg-white/5 transition-all text-sm font-urban"
+                className="flex-1 py-3 rounded-xl text-slate-400 border border-slate-700/50
+                  hover:bg-white/5 transition-all"
               >
                 {tr.cancel}
               </button>
