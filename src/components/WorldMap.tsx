@@ -121,8 +121,10 @@ export default function WorldMap({ lang }: WorldMapProps) {
         attributionControl: false,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      // Use CartoDB tiles with English-only labels
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
+        subdomains: "abcd",
       }).addTo(map);
 
       // Zoom controls bottom-right — away from everything
