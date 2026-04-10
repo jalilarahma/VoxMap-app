@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoxMap — Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #020617;
+      color: white;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+    .container { max-width: 400px; }
+    .icon { font-size: 4rem; margin-bottom: 1rem; }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: bold;
+      background: linear-gradient(135deg, #F59E0B, #EF4444, #8B5CF6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+    }
+    p { color: #94a3b8; font-size: 1rem; line-height: 1.6; margin-bottom: 1.5rem; }
+    button {
+      background: linear-gradient(to right, #F59E0B, #EF4444, #8B5CF6);
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>You're Offline</h1>
+    <p>VoxMap needs an internet connection to load live polls and the world map. Please check your connection and try again.</p>
+    <button onclick="location.reload()">Try Again</button>
+  </div>
+</body>
+</html>
