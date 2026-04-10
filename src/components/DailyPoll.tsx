@@ -24,6 +24,42 @@ function getQuestionText(q: Question, lang: Lang): string {
   return (q[key] as string) || q.text_en;
 }
 
+// ── Streak logic (stored in cookie-like approach via date keys) ──
+function getStreakData(): { count: number; lastDate: string } {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage?.getItem("voxmap_streak") : null;
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { count: 0, lastDate: "" };
+}
+
+function updateStreak(): number {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const data = getStreakData();
+
+  if (data.lastDate === today) return data.count; // Already voted today
+
+  let newCount = 1;
+  if (data.lastDate === yesterday) {
+    newCount = data.count + 1; // Consecutive day
+  }
+
+  const updated = { count: newCount, lastDate: today };
+  try {
+    window.localStorage?.setItem("voxmap_streak", JSON.stringify(updated));
+  } catch {}
+  return newCount;
+}
+
+function getCurrentStreak(): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const data = getStreakData();
+  if (data.lastDate === today || data.lastDate === yesterday) return data.count;
+  return 0;
+}
+
 export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
   const tr = t[lang];
   const [voted, setVoted] = useState(false);
@@ -33,6 +69,12 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
   const [loading, setLoading] = useState(true);
   const [voteCounts, setVoteCounts] = useState<number[]>([0, 0, 0, 0]);
   const [totalVotes, setTotalVotes] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [showShareToast, setShowShareToast] = useState(false);
+
+  useEffect(() => {
+    setStreak(getCurrentStreak());
+  }, []);
 
   useEffect(() => {
     async function fetchQuestion() {
@@ -116,9 +158,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
             navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
           );
           location = `POINT(${pos.coords.longitude} ${pos.coords.latitude})`;
-        } catch {
-          // Location not available
-        }
+        } catch {}
       }
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -145,7 +185,46 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
       console.error("Vote submission error:", e);
     }
 
+    // Update streak
+    const newStreak = updateStreak();
+    setStreak(newStreak);
+
     setTimeout(() => setVoted(true), 300);
+  };
+
+  // Share vote to social media / WhatsApp
+  const handleShare = async () => {
+    const optionLabels = ["Strongly Agree", "Agree", "Disagree", "Strongly Disagree"];
+    const myVote = selectedOption !== null ? optionLabels[selectedOption] : "";
+    const questionText = question ? getQuestionText(question, "en") : "";
+
+    const shareText = `I voted "${myVote}" on VoxMap!\n\n"${questionText}"\n\nWhat do YOU think? Have your voice heard:\nhttps://voxmap-app.vercel.app`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "VoxMap - My Vote", text: shareText });
+        return;
+      } catch {}
+    }
+
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setShowShareToast(true);
+      setTimeout(() => setShowShareToast(false), 3000);
+    } catch {}
+  };
+
+  // Share directly to WhatsApp
+  const handleWhatsAppShare = () => {
+    const optionLabels = ["Strongly Agree", "Agree", "Disagree", "Strongly Disagree"];
+    const myVote = selectedOption !== null ? optionLabels[selectedOption] : "";
+    const questionText = question ? getQuestionText(question, "en") : "";
+
+    const text = encodeURIComponent(
+      `I voted "${myVote}" on VoxMap!\n\n"${questionText}"\n\nWhat do YOU think?\nhttps://voxmap-app.vercel.app`
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
   const options = [
@@ -172,7 +251,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     );
   }
 
-  // Results screen
+  // ── Results screen (after voting) ──
   if (voted || alreadyVoted) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-vox-dark px-4">
@@ -181,10 +260,20 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
           <h2 className="text-3xl font-bold gradient-text">
             {alreadyVoted && !voted ? tr.analytics : tr.thank_you}
           </h2>
+
+          {/* Streak display */}
+          {streak > 0 && (
+            <div className="inline-flex items-center gap-2 bg-slate-800/80 rounded-2xl px-5 py-2.5 border border-orange-500/30">
+              <span className="text-2xl">{streak >= 7 ? "\ud83d\udd25" : streak >= 3 ? "\u2b50" : "\u26a1"}</span>
+              <span className="text-orange-400 font-bold text-lg">{streak} day streak!</span>
+            </div>
+          )}
+
           {!alreadyVoted && (
             <p className="text-2xl text-yellow-400 font-bold">{tr.points}</p>
           )}
 
+          {/* Vote results */}
           {totalVotes > 0 && (
             <div className="mt-6 space-y-3 text-left">
               {options.map((option, idx) => {
@@ -212,9 +301,34 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
             </div>
           )}
 
+          {/* Share buttons */}
+          <div className="flex gap-3 justify-center mt-4">
+            <button
+              onClick={handleWhatsAppShare}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
+                bg-green-600 hover:bg-green-500 text-white
+                active:scale-95 transition-all"
+            >
+              Share on WhatsApp
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
+                bg-slate-700 hover:bg-slate-600 text-white border border-slate-600
+                active:scale-95 transition-all"
+            >
+              Share
+            </button>
+          </div>
+
+          {/* Copied toast */}
+          {showShareToast && (
+            <p className="text-green-400 text-sm animate-pulse">Copied to clipboard!</p>
+          )}
+
           <button
             onClick={onComplete}
-            className="mt-8 px-8 py-4 rounded-2xl text-lg font-bold text-white
+            className="mt-4 px-8 py-4 rounded-2xl text-lg font-bold text-white
               bg-gradient-to-r from-orange-500 via-red-500 to-purple-500
               hover:scale-105 active:scale-95 transition-all duration-300"
           >
@@ -225,9 +339,20 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     );
   }
 
+  // ── Voting screen ──
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-vox-dark">
       <div className="w-full max-w-lg">
+        {/* Streak badge at top */}
+        {streak > 0 && (
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex items-center gap-2 bg-slate-800/60 rounded-full px-4 py-1.5 border border-slate-700/50">
+              <span>{streak >= 7 ? "\ud83d\udd25" : streak >= 3 ? "\u2b50" : "\u26a1"}</span>
+              <span className="text-orange-400 font-bold text-sm">{streak} day streak</span>
+            </div>
+          </div>
+        )}
+
         <p className="text-sm text-slate-400 uppercase tracking-widest mb-2 text-center">
           {tr.todays_question}
         </p>
