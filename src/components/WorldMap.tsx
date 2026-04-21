@@ -128,6 +128,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeed, setShowFeed] = useState(false);
   const [helpedCount, setHelpedCount] = useState(0);
+  const [showVoteMap, setShowVoteMap] = useState(true);
+  const voteMarkersRef = useRef<any[]>([]);
 
   // Global report function for popup buttons
   useEffect(() => {
@@ -329,6 +331,78 @@ export default function WorldMap({ lang }: WorldMapProps) {
     });
   }, [pins, lang]);
 
+  // ── Vote Sentiment Heatmap ──
+  // Shows colored circles on the map: green = agree, red = disagree
+  useEffect(() => {
+    if (!mapInstanceRef.current || !showVoteMap) {
+      // Clear vote markers if toggled off
+      voteMarkersRef.current.forEach((m) => m.remove());
+      voteMarkersRef.current = [];
+      return;
+    }
+
+    async function fetchVoteLocations() {
+      const dayOfYear = Math.floor(
+        (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+      );
+
+      const { data: question } = await supabase
+        .from("questions")
+        .select("id")
+        .eq("day_of_year", ((dayOfYear - 1) % 30) + 1)
+        .single();
+
+      if (!question) return;
+
+      const { data: votes } = await supabase
+        .from("votes")
+        .select("option_index, location")
+        .eq("question_id", question.id);
+
+      if (!votes) return;
+
+      import("leaflet").then((L) => {
+        // Clear old vote markers
+        voteMarkersRef.current.forEach((m) => m.remove());
+        voteMarkersRef.current = [];
+
+        votes.forEach((vote) => {
+          if (!vote.location) return;
+
+          // Parse POINT(lng lat) format
+          const match = vote.location.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
+          if (!match) return;
+
+          const lng = parseFloat(match[1]);
+          const lat = parseFloat(match[2]);
+          if (isNaN(lat) || isNaN(lng)) return;
+
+          // Green for agree (0=strongly agree, 1=agree), Red for disagree (2=disagree, 3=strongly disagree)
+          const isAgree = vote.option_index <= 1;
+          const color = isAgree ? "#22C55E" : "#EF4444";
+          const opacity = vote.option_index === 0 || vote.option_index === 3 ? 0.7 : 0.5; // Stronger opinion = more opaque
+
+          const circle = L.circleMarker([lat, lng], {
+            radius: 18,
+            fillColor: color,
+            color: "transparent",
+            weight: 0,
+            fillOpacity: opacity,
+          }).addTo(mapInstanceRef.current);
+
+          circle.bindTooltip(
+            isAgree ? "✅ Agree" : "❌ Disagree",
+            { direction: "top", className: "pin-label" }
+          );
+
+          voteMarkersRef.current.push(circle);
+        });
+      });
+    }
+
+    fetchVoteLocations();
+  }, [showVoteMap]);
+
   function getTimeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -473,6 +547,14 @@ export default function WorldMap({ lang }: WorldMapProps) {
             hover:bg-white/10 transition-all"
         >
           <span className="text-xs">📡</span>
+        </button>
+        <button
+          onClick={() => setShowVoteMap(!showVoteMap)}
+          className={`bg-slate-900/90 backdrop-blur-sm rounded-xl px-3 py-1.5 border transition-all
+            ${showVoteMap ? "border-green-500/50 bg-green-900/30" : "border-slate-700/50 hover:bg-white/10"}`}
+          title="Toggle vote heatmap"
+        >
+          <span className="text-xs">{showVoteMap ? "🟢" : "🗳️"}</span>
         </button>
       </div>
 
