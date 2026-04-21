@@ -107,7 +107,14 @@ export default function Community({ lang, onClose }: CommunityProps) {
       const encoded = `${sanitizeText(username)}||${clean}`;
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) await supabase.auth.signInAnonymously();
+      if (!session) {
+        const { error: authError } = await supabase.auth.signInAnonymously();
+        if (authError) {
+          console.error("Auth error:", authError);
+          setIsPosting(false);
+          return;
+        }
+      }
 
       const { error } = await supabase.from("pins").insert({
         device_id: username,
@@ -116,18 +123,21 @@ export default function Community({ lang, onClose }: CommunityProps) {
         note: encoded,
         lat: 0,
         lng: 0,
-        location: "POINT(0 0)",
+        location: `POINT(0 0)`,
         is_active: true,
-        helpful_count: 0,
       });
 
-      if (!error) {
+      if (error) {
+        console.error("Community post error:", error);
+      } else {
         addPoints(username, 5); // 5 points for posting
         setNewPost("");
         setShowCompose(false);
         fetchPosts();
       }
-    } catch {}
+    } catch (e) {
+      console.error("Community post exception:", e);
+    }
     setIsPosting(false);
   }
 

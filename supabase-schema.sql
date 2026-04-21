@@ -47,7 +47,7 @@ CREATE TABLE pins (
   device_id TEXT NOT NULL,
   category TEXT NOT NULL CHECK (category IN (
     'danger', 'robbery', 'assault', 'medical', 'fire', 'trapped',
-    'flood', 'shooting', 'missing', 'safe', 'help', 'info'
+    'flood', 'shooting', 'missing', 'safe', 'help', 'info', 'community'
   )),
   urgency TEXT NOT NULL DEFAULT 'medium' CHECK (urgency IN ('critical', 'high', 'medium', 'low')),
   note TEXT,
