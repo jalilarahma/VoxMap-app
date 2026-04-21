@@ -4,6 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { canCreatePin, recordPinCreation } from "@/lib/rateLimit";
+import { getUsername } from "@/components/UsernamePicker";
+
+// Parse pin note — format is "username||actual note" or just "note"
+function parsePinNote(note: string | null): { username: string; comment: string } {
+  if (!note) return { username: "Anonymous", comment: "" };
+  if (note.includes("||")) {
+    const [username, ...rest] = note.split("||");
+    return { username: username || "Anonymous", comment: rest.join("||") };
+  }
+  return { username: "Anonymous", comment: note };
+}
 
 // SOS Categories — original clean colors
 const SOS_CATEGORIES = [
@@ -228,15 +239,19 @@ export default function WorldMap({ lang }: WorldMapProps) {
         }).addTo(mapInstanceRef.current);
 
         const timeAgo = getTimeAgo(pin.created_at);
+        const { username, comment } = parsePinNote(pin.note);
 
         marker.bindPopup(`
-          <div style="font-family:system-ui;min-width:180px;">
+          <div style="font-family:system-ui;min-width:200px;">
             <div style="font-size:24px;text-align:center;margin-bottom:8px;">${cat.icon}</div>
             <div style="font-size:16px;font-weight:bold;text-align:center;color:${cat.color};">
               ${tr[pin.category as keyof typeof tr] || pin.category}
             </div>
-            ${pin.city ? `<div style="text-align:center;color:#94a3b8;margin-top:4px;">${pin.city}</div>` : ""}
-            ${pin.note ? `<div style="text-align:center;color:#e2e8f0;margin-top:8px;font-size:13px;">"${pin.note}"</div>` : ""}
+            <div style="text-align:center;margin-top:6px;">
+              <span style="color:#F59E0B;font-weight:600;font-size:13px;">@${username}</span>
+            </div>
+            ${comment ? `<div style="background:#1e293b;border-radius:10px;padding:8px 12px;margin-top:8px;color:#e2e8f0;font-size:13px;line-height:1.4;border-left:3px solid ${cat.color};">${comment}</div>` : ""}
+            ${pin.city ? `<div style="text-align:center;color:#94a3b8;margin-top:6px;font-size:11px;">📍 ${pin.city}</div>` : ""}
             <div style="text-align:center;margin-top:8px;">
               <span style="padding:2px 8px;border-radius:8px;font-size:12px;
                 background:${URGENCY_LEVELS.find((u) => u.id === pin.urgency)?.color}22;
@@ -306,11 +321,15 @@ export default function WorldMap({ lang }: WorldMapProps) {
         }
       }
 
+      // Encode username into note field: "username||comment"
+      const username = getUsername() || "Anonymous";
+      const encodedNote = pinNote ? `${username}||${pinNote}` : `${username}||`;
+
       const { error } = await supabase.from("pins").insert({
         device_id: deviceId,
         category: selectedCategory,
         urgency: selectedUrgency,
-        note: pinNote || null,
+        note: encodedNote,
         lat,
         lng,
         location: `POINT(${lng} ${lat})`,
@@ -375,6 +394,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
           </div>
           {pins.slice(0, 10).map((pin) => {
             const cat = SOS_CATEGORIES.find((c) => c.id === pin.category);
+            const { username: pinUser, comment: pinComment } = parsePinNote(pin.note);
             return (
               <div
                 key={pin.id}
@@ -389,9 +409,11 @@ export default function WorldMap({ lang }: WorldMapProps) {
                 <span className="text-lg">{cat?.icon}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-white truncate">
+                    <span className="text-orange-400">@{pinUser}</span>
+                    {" — "}
                     {tr[pin.category as keyof typeof tr] || pin.category}
-                    {pin.city && ` — ${pin.city}`}
                   </p>
+                  {pinComment && <p className="text-[10px] text-slate-400 truncate">{pinComment}</p>}
                   <p className="text-[10px] text-slate-500">{getTimeAgo(pin.created_at)}</p>
                 </div>
                 <span
@@ -476,19 +498,21 @@ export default function WorldMap({ lang }: WorldMapProps) {
               </>
             )}
 
-            {/* Step 2: Note + Submit */}
+            {/* Step 2: Comment + Submit */}
             {createStep === 2 && (
               <>
-                <h3 className="text-xl font-bold mb-4">{tr.add_note}</h3>
+                <h3 className="text-xl font-bold mb-2">{tr.add_note}</h3>
+                <p className="text-sm text-slate-400 mb-4">Your comment will be visible on the map for everyone to see.</p>
                 <textarea
                   value={pinNote}
                   onChange={(e) => setPinNote(e.target.value)}
                   className="w-full h-32 bg-slate-800 rounded-xl p-4 text-white
                     border border-slate-700/50 focus:border-orange-500
                     focus:outline-none resize-none"
-                  placeholder="..."
+                  placeholder="What's happening? Describe the situation..."
                   maxLength={280}
                 />
+                <p className="text-xs text-slate-600 mt-1 text-right">{pinNote.length}/280</p>
                 <button
                   onClick={handleSubmitPin}
                   disabled={isSubmitting}

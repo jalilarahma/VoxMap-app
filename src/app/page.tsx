@@ -7,6 +7,7 @@ import DailyPoll from "@/components/DailyPoll";
 import LanguagePicker from "@/components/LanguagePicker";
 import Analytics from "@/components/Analytics";
 import NotificationPrompt, { scheduleNotificationCheck } from "@/components/NotificationPrompt";
+import UsernamePicker, { hasUsername } from "@/components/UsernamePicker";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
@@ -18,7 +19,7 @@ const WorldMap = dynamic(() => import("@/components/WorldMap"), {
   ),
 });
 
-type Screen = "splash" | "poll" | "map";
+type Screen = "splash" | "username" | "poll" | "map";
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("splash");
@@ -40,7 +41,17 @@ export default function Home() {
       <LanguagePicker currentLang={lang} onChangeLang={setLang} />
 
       {screen === "splash" && (
-        <SplashScreen lang={lang} onEnter={() => setScreen("poll")} />
+        <SplashScreen lang={lang} onEnter={() => {
+          if (hasUsername()) {
+            setScreen("poll");
+          } else {
+            setScreen("username");
+          }
+        }} />
+      )}
+
+      {screen === "username" && (
+        <UsernamePicker onComplete={() => setScreen("poll")} />
       )}
 
       {screen === "poll" && (
