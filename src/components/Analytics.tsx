@@ -25,7 +25,7 @@ function getAnalyticsAvailability(): { available: boolean; daysLeft: number; nex
 
 export default function Analytics({ lang, onClose }: AnalyticsProps) {
   const tr = t[lang];
-  const [results, setResults] = useState<number[]>([0, 0, 0, 0]);
+  const [results, setResults] = useState<number[]>([0, 0]);
   const [totalVotes, setTotalVotes] = useState(0);
   const [totalPins, setTotalPins] = useState(0);
   const [pinsByCategory, setPinsByCategory] = useState<Record<string, number>>({});
@@ -57,9 +57,9 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
           .eq("question_id", question.id);
 
         if (votes) {
-          const counts = [0, 0, 0, 0];
+          const counts = [0, 0];
           votes.forEach((v) => {
-            if (v.option_index >= 0 && v.option_index <= 3) counts[v.option_index]++;
+            if (v.option_index >= 0 && v.option_index <= 1) counts[v.option_index]++;
           });
           setResults(counts);
           setTotalVotes(votes.length);
@@ -87,10 +87,8 @@ export default function Analytics({ lang, onClose }: AnalyticsProps) {
   }, [available]);
 
   const options = [
-    { label: tr.strongly_agree, color: "#22C55E" },
-    { label: tr.agree, color: "#3B82F6" },
-    { label: tr.disagree, color: "#F97316" },
-    { label: tr.strongly_disagree, color: "#EF4444" },
+    { label: tr.agree, color: "#22C55E" },
+    { label: tr.disagree, color: "#EF4444" },
   ];
 
   const categoryIcons: Record<string, string> = {

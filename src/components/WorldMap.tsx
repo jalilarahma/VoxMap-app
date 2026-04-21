@@ -377,10 +377,10 @@ export default function WorldMap({ lang }: WorldMapProps) {
           const lat = parseFloat(match[2]);
           if (isNaN(lat) || isNaN(lng)) return;
 
-          // Green for agree (0=strongly agree, 1=agree), Red for disagree (2=disagree, 3=strongly disagree)
-          const isAgree = vote.option_index <= 1;
+          // Green for agree (0), Red for disagree (1)
+          const isAgree = vote.option_index === 0;
           const color = isAgree ? "#22C55E" : "#EF4444";
-          const opacity = vote.option_index === 0 || vote.option_index === 3 ? 0.7 : 0.5; // Stronger opinion = more opaque
+          const opacity = 0.6;
 
           const circle = L.circleMarker([lat, lng], {
             radius: 18,
@@ -547,14 +547,6 @@ export default function WorldMap({ lang }: WorldMapProps) {
             hover:bg-white/10 transition-all"
         >
           <span className="text-xs">📡</span>
-        </button>
-        <button
-          onClick={() => setShowVoteMap(!showVoteMap)}
-          className={`bg-slate-900/90 backdrop-blur-sm rounded-xl px-3 py-1.5 border transition-all
-            ${showVoteMap ? "border-green-500/50 bg-green-900/30" : "border-slate-700/50 hover:bg-white/10"}`}
-          title="Toggle vote heatmap"
-        >
-          <span className="text-xs">{showVoteMap ? "🟢" : "🗳️"}</span>
         </button>
       </div>
 

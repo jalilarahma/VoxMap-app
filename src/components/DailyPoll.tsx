@@ -84,7 +84,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
-  const [voteCounts, setVoteCounts] = useState<number[]>([0, 0, 0, 0]);
+  const [voteCounts, setVoteCounts] = useState<number[]>([0, 0]);
   const [totalVotes, setTotalVotes] = useState(0);
   const [streak, setStreak] = useState(0);
   const [showShareToast, setShowShareToast] = useState(false);
@@ -156,9 +156,9 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
       .eq("question_id", questionId);
 
     if (votes) {
-      const counts = [0, 0, 0, 0];
+      const counts = [0, 0];
       votes.forEach((v) => {
-        if (v.option_index >= 0 && v.option_index <= 3) counts[v.option_index]++;
+        if (v.option_index >= 0 && v.option_index <= 1) counts[v.option_index]++;
       });
       setVoteCounts(counts);
       setTotalVotes(votes.length);
@@ -168,9 +168,9 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
       if (city) {
         const cityVotes = votes.filter((v) => v.country_code === city);
         if (cityVotes.length >= 2) {
-          const cityCounts = [0, 0, 0, 0];
+          const cityCounts = [0, 0];
           cityVotes.forEach((v) => {
-            if (v.option_index >= 0 && v.option_index <= 3) cityCounts[v.option_index]++;
+            if (v.option_index >= 0 && v.option_index <= 1) cityCounts[v.option_index]++;
           });
           const topIdx = cityCounts.indexOf(Math.max(...cityCounts));
           const topPct = Math.round((cityCounts[topIdx] / cityVotes.length) * 100);
@@ -239,7 +239,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
 
   // Share vote to social media / WhatsApp
   const handleShare = async () => {
-    const optionLabels = ["Strongly Agree", "Agree", "Disagree", "Strongly Disagree"];
+    const optionLabels = ["Agree", "Disagree"];
     const myVote = selectedOption !== null ? optionLabels[selectedOption] : "";
     const questionText = question ? getQuestionText(question, "en") : "";
 
@@ -262,7 +262,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
 
   // Share directly to WhatsApp
   const handleWhatsAppShare = () => {
-    const optionLabels = ["Strongly Agree", "Agree", "Disagree", "Strongly Disagree"];
+    const optionLabels = ["Agree", "Disagree"];
     const myVote = selectedOption !== null ? optionLabels[selectedOption] : "";
     const questionText = question ? getQuestionText(question, "en") : "";
 
@@ -273,20 +273,16 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
   };
 
   const options = [
-    tr.strongly_agree,
     tr.agree,
     tr.disagree,
-    tr.strongly_disagree,
   ];
 
   const optionColors = [
-    "from-green-500 to-green-600",
-    "from-blue-500 to-blue-600",
-    "from-orange-500 to-orange-600",
-    "from-red-500 to-red-600",
+    "from-green-500 to-emerald-600",
+    "from-red-500 to-rose-600",
   ];
 
-  const barColors = ["bg-green-500", "bg-blue-500", "bg-orange-500", "bg-red-500"];
+  const barColors = ["bg-green-500", "bg-red-500"];
 
   if (loading) {
     return (
@@ -321,7 +317,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
               <p className="text-white text-sm leading-relaxed">
                 <span className="text-orange-400 font-bold">{cityRanking.city}</span> voted{" "}
                 <span className="text-white font-bold">{cityRanking.topPct}%</span>{" "}
-                {["Strongly Agree", "Agree", "Disagree", "Strongly Disagree"][cityRanking.topOption]}
+                {["Agree", "Disagree"][cityRanking.topOption]}
                 {" vs "}
                 <span className="text-slate-300">{cityRanking.globalPct}%</span> globally
               </p>

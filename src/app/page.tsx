@@ -8,6 +8,7 @@ import LanguagePicker from "@/components/LanguagePicker";
 import Analytics from "@/components/Analytics";
 import NotificationPrompt, { scheduleNotificationCheck } from "@/components/NotificationPrompt";
 import UsernamePicker, { hasUsername, getUsername, setUsername as saveUsername } from "@/components/UsernamePicker";
+import Community from "@/components/Community";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
@@ -27,6 +28,7 @@ export default function Home() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const [showUsernameEdit, setShowUsernameEdit] = useState(false);
+  const [showCommunity, setShowCommunity] = useState(false);
 
   // Start notification scheduler if already granted
   useEffect(() => {
@@ -74,10 +76,19 @@ export default function Home() {
           >
             📊
           </button>
-          {/* Profile/username button — bottom left, above analytics */}
+          {/* Community button */}
+          <button
+            onClick={() => setShowCommunity(true)}
+            className="fixed bottom-20 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+              rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+              hover:border-orange-400 transition-all text-sm"
+          >
+            💬
+          </button>
+          {/* Profile/username button */}
           <button
             onClick={() => setShowUsernameEdit(true)}
-            className="fixed bottom-20 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+            className="fixed bottom-32 left-4 z-[1500] w-10 h-10 flex items-center justify-center
               rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
               hover:border-orange-400 transition-all text-sm"
             title={`@${getUsername() || "Anonymous"}`}
@@ -93,6 +104,10 @@ export default function Home() {
 
       {showNotifPrompt && (
         <NotificationPrompt onDismiss={() => setShowNotifPrompt(false)} />
+      )}
+
+      {showCommunity && (
+        <Community lang={lang} onClose={() => setShowCommunity(false)} />
       )}
 
       {showUsernameEdit && (
