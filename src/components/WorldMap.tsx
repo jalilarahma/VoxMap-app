@@ -244,7 +244,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
         const timeAgo = getTimeAgo(pin.created_at);
         const { username, comment, photo } = parsePinNote(pin.note);
-        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${pin.lat},${pin.lng}`;
+        const googleMapsUrl = `https://www.google.com/maps?q=${pin.lat},${pin.lng}`;
 
         marker.bindPopup(`
           <div style="font-family:system-ui;min-width:220px;max-width:280px;">
@@ -272,7 +272,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
               style="display:block;margin-top:10px;padding:8px 0;text-align:center;
                 background:linear-gradient(to right,#F59E0B,#EF4444);color:white;
                 border-radius:10px;font-size:13px;font-weight:bold;text-decoration:none;">
-              🧭 Navigate Here
+              📍 Open in Google Maps
             </a>
           </div>
         `, { maxWidth: 300 });
