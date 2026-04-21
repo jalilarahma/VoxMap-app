@@ -40,18 +40,24 @@ body {
 
 /* Pin label tooltips — always visible on map */
 .pin-label {
-  background: rgba(15, 23, 42, 0.92) !important;
-  border: 1px solid rgba(30, 41, 59, 0.7) !important;
-  border-radius: 8px !important;
-  padding: 4px 10px !important;
-  font-size: 12px !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  border-radius: 10px !important;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
   line-height: 1.4 !important;
   font-family: system-ui, -apple-system, sans-serif !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
-  max-width: 200px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+  max-width: 220px !important;
+  white-space: normal !important;
 }
 .pin-label::before {
-  border-right-color: rgba(15, 23, 42, 0.92) !important;
+  border-right-color: rgba(15, 23, 42, 0.95) !important;
+}
+/* Keep labels visible at all zoom levels */
+.leaflet-tooltip.pin-label {
+  pointer-events: none !important;
+  z-index: 650 !important;
 }
 
 /* Glow animations */

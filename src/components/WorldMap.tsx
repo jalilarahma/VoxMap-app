@@ -266,11 +266,22 @@ export default function WorldMap({ lang }: WorldMapProps) {
         `);
 
         // Always-visible label on the map showing username + comment
-        const labelText = comment
-          ? `<span style="color:#F59E0B;font-weight:700;">@${username}</span><br/><span style="color:#e2e8f0;">${comment.length > 50 ? comment.slice(0, 50) + "…" : comment}</span>`
-          : `<span style="color:#F59E0B;font-weight:700;">@${username}</span>`;
+        const tooltipEl = document.createElement("div");
+        tooltipEl.style.cssText = "font-family:system-ui;line-height:1.4;";
 
-        marker.bindTooltip(labelText, {
+        const userLine = document.createElement("div");
+        userLine.style.cssText = "color:#F59E0B;font-weight:700;font-size:12px;";
+        userLine.textContent = `@${username}`;
+        tooltipEl.appendChild(userLine);
+
+        if (comment) {
+          const commentLine = document.createElement("div");
+          commentLine.style.cssText = "color:#e2e8f0;font-size:11px;margin-top:2px;max-width:180px;word-wrap:break-word;";
+          commentLine.textContent = comment.length > 60 ? comment.slice(0, 60) + "…" : comment;
+          tooltipEl.appendChild(commentLine);
+        }
+
+        marker.bindTooltip(tooltipEl, {
           permanent: true,
           direction: "right",
           offset: [12, 0],

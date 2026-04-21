@@ -7,7 +7,7 @@ import DailyPoll from "@/components/DailyPoll";
 import LanguagePicker from "@/components/LanguagePicker";
 import Analytics from "@/components/Analytics";
 import NotificationPrompt, { scheduleNotificationCheck } from "@/components/NotificationPrompt";
-import UsernamePicker, { hasUsername } from "@/components/UsernamePicker";
+import UsernamePicker, { hasUsername, getUsername, setUsername as saveUsername } from "@/components/UsernamePicker";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
@@ -26,6 +26,7 @@ export default function Home() {
   const [lang, setLang] = useState<Lang>("en");
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
+  const [showUsernameEdit, setShowUsernameEdit] = useState(false);
 
   // Start notification scheduler if already granted
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function Home() {
       {screen === "map" && (
         <>
           <WorldMap lang={lang} />
-          {/* Analytics button — bottom left, subtle */}
+          {/* Analytics button — bottom left */}
           <button
             onClick={() => setShowAnalytics(true)}
             className="fixed bottom-8 left-4 z-[1500] w-10 h-10 flex items-center justify-center
@@ -72,6 +73,16 @@ export default function Home() {
               hover:border-orange-400 transition-all text-sm"
           >
             📊
+          </button>
+          {/* Profile/username button — bottom left, above analytics */}
+          <button
+            onClick={() => setShowUsernameEdit(true)}
+            className="fixed bottom-20 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+              rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+              hover:border-orange-400 transition-all text-sm"
+            title={`@${getUsername() || "Anonymous"}`}
+          >
+            👤
           </button>
         </>
       )}
@@ -82,6 +93,13 @@ export default function Home() {
 
       {showNotifPrompt && (
         <NotificationPrompt onDismiss={() => setShowNotifPrompt(false)} />
+      )}
+
+      {showUsernameEdit && (
+        <UsernamePicker onComplete={(name) => {
+          saveUsername(name);
+          setShowUsernameEdit(false);
+        }} />
       )}
     </div>
   );
