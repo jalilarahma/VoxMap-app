@@ -265,6 +265,19 @@ export default function WorldMap({ lang }: WorldMapProps) {
           </div>
         `);
 
+        // Always-visible label on the map showing username + comment
+        const labelText = comment
+          ? `<span style="color:#F59E0B;font-weight:700;">@${username}</span><br/><span style="color:#e2e8f0;">${comment.length > 50 ? comment.slice(0, 50) + "…" : comment}</span>`
+          : `<span style="color:#F59E0B;font-weight:700;">@${username}</span>`;
+
+        marker.bindTooltip(labelText, {
+          permanent: true,
+          direction: "right",
+          offset: [12, 0],
+          className: "pin-label",
+          opacity: 0.95,
+        });
+
         markersRef.current.push(marker);
       });
     });
