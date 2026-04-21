@@ -90,7 +90,7 @@ export default function Community({ lang, onClose }: CommunityProps) {
           text: parts[1] || "",
           likes: p.helpful_count || 0,
           created_at: p.created_at,
-          category: p.urgency || "opinion",
+          category: "opinion",
         };
       });
       setPosts(mapped);
@@ -119,7 +119,7 @@ export default function Community({ lang, onClose }: CommunityProps) {
       const { error } = await supabase.from("pins").insert({
         device_id: username,
         category: "community",
-        urgency: "opinion",
+        urgency: "low",
         note: encoded,
         lat: 0,
         lng: 0,

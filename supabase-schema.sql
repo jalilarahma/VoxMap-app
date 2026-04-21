@@ -49,7 +49,7 @@ CREATE TABLE pins (
     'danger', 'robbery', 'assault', 'medical', 'fire', 'trapped',
     'flood', 'shooting', 'missing', 'safe', 'help', 'info', 'community'
   )),
-  urgency TEXT NOT NULL DEFAULT 'medium' CHECK (urgency IN ('critical', 'high', 'medium', 'low')),
+  urgency TEXT NOT NULL DEFAULT 'medium' CHECK (urgency IN ('critical', 'high', 'medium', 'low', 'opinion')),
   note TEXT,
   location GEOGRAPHY(POINT, 4326) NOT NULL,
   lat DOUBLE PRECISION NOT NULL,
