@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import SplashScreen from "@/components/SplashScreen";
 import DailyPoll from "@/components/DailyPoll";
 import LanguagePicker from "@/components/LanguagePicker";
 import Analytics from "@/components/Analytics";
+import NotificationPrompt, { scheduleNotificationCheck } from "@/components/NotificationPrompt";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
@@ -23,6 +24,14 @@ export default function Home() {
   const [screen, setScreen] = useState<Screen>("splash");
   const [lang, setLang] = useState<Lang>("en");
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
+
+  // Start notification scheduler if already granted
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      scheduleNotificationCheck();
+    }
+  }, []);
 
   const dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
 
@@ -35,7 +44,10 @@ export default function Home() {
       )}
 
       {screen === "poll" && (
-        <DailyPoll lang={lang} onComplete={() => setScreen("map")} />
+        <DailyPoll lang={lang} onComplete={() => {
+          setScreen("map");
+          setShowNotifPrompt(true);
+        }} />
       )}
 
       {screen === "map" && (
@@ -55,6 +67,10 @@ export default function Home() {
 
       {showAnalytics && (
         <Analytics lang={lang} onClose={() => setShowAnalytics(false)} />
+      )}
+
+      {showNotifPrompt && (
+        <NotificationPrompt onDismiss={() => setShowNotifPrompt(false)} />
       )}
     </div>
   );
