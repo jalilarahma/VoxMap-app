@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { canCreatePin, recordPinCreation } from "@/lib/rateLimit";
+import { fuzzGPS, sanitizeText, escapeHTML, reportPin, isPinReported } from "@/lib/security";
 import { getUsername } from "@/components/UsernamePicker";
 
 // Parse pin note — format is "username||comment||photoDataUrl" or "username||comment" or just "note"
@@ -128,6 +129,18 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [showFeed, setShowFeed] = useState(false);
   const [helpedCount, setHelpedCount] = useState(0);
 
+  // Global report function for popup buttons
+  useEffect(() => {
+    (window as any).__reportPin__ = (pinId: string) => {
+      if (isPinReported(pinId)) return;
+      reportPin(pinId);
+      alert("Thank you for reporting. We'll review this pin.");
+      // Re-render markers to update button state
+      setPins((prev) => [...prev]);
+    };
+    return () => { delete (window as any).__reportPin__; };
+  }, []);
+
   // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
@@ -243,8 +256,11 @@ export default function WorldMap({ lang }: WorldMapProps) {
         }).addTo(mapInstanceRef.current);
 
         const timeAgo = getTimeAgo(pin.created_at);
-        const { username, comment, photo } = parsePinNote(pin.note);
+        const { username: rawUser, comment: rawComment, photo } = parsePinNote(pin.note);
+        const username = escapeHTML(rawUser);
+        const comment = escapeHTML(rawComment);
         const googleMapsUrl = `https://www.google.com/maps?q=${pin.lat},${pin.lng}`;
+        const pinReported = isPinReported(pin.id);
 
         marker.bindPopup(`
           <div style="font-family:system-ui;min-width:220px;max-width:280px;">
@@ -274,6 +290,13 @@ export default function WorldMap({ lang }: WorldMapProps) {
                 border-radius:10px;font-size:13px;font-weight:bold;text-decoration:none;">
               📍 Open in Google Maps
             </a>
+            <button onclick="window.__reportPin__('${pin.id}')"
+              style="display:block;width:100%;margin-top:6px;padding:6px 0;text-align:center;
+                background:transparent;color:${pinReported ? "#64748b" : "#94a3b8"};
+                border:1px solid #1e293b;border-radius:10px;font-size:11px;cursor:pointer;
+                font-family:system-ui;">
+              ${pinReported ? "✓ Reported" : "🚩 Report this pin"}
+            </button>
           </div>
         `, { maxWidth: 300 });
 
@@ -340,8 +363,10 @@ export default function WorldMap({ lang }: WorldMapProps) {
           const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
             navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })
           );
-          lat = pos.coords.latitude;
-          lng = pos.coords.longitude;
+          // Fuzz GPS to ~100m for privacy protection
+          const fuzzed = fuzzGPS(pos.coords.latitude, pos.coords.longitude);
+          lat = fuzzed.lat;
+          lng = fuzzed.lng;
         } catch {}
       }
 
@@ -358,8 +383,9 @@ export default function WorldMap({ lang }: WorldMapProps) {
       }
 
       // Encode username, comment, and photo into note field: "username||comment||photo"
-      const username = getUsername() || "Anonymous";
-      const encodedNote = `${username}||${pinNote || ""}||${pinPhoto || ""}`;
+      const username = sanitizeText(getUsername() || "Anonymous");
+      const cleanNote = sanitizeText(pinNote || "");
+      const encodedNote = `${username}||${cleanNote}||${pinPhoto || ""}`;
 
       const { error } = await supabase.from("pins").insert({
         device_id: deviceId,

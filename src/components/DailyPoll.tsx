@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { canVote, recordVote } from "@/lib/rateLimit";
+import { fuzzGPS } from "@/lib/security";
 import { getTodaysQuestion, getCategoryIcon, getCategoryColor } from "@/lib/questionScheduler";
 
 interface DailyPollProps {
@@ -195,7 +196,8 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
           const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
             navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
           );
-          location = `POINT(${pos.coords.longitude} ${pos.coords.latitude})`;
+          const fuzzed = fuzzGPS(pos.coords.latitude, pos.coords.longitude);
+          location = `POINT(${fuzzed.lng} ${fuzzed.lat})`;
           cityName = await detectCity(pos.coords.latitude, pos.coords.longitude);
           if (cityName) setUserCity(cityName);
         } catch {}

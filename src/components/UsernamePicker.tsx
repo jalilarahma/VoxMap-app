@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sanitizeUsername } from "@/lib/security";
 
 const USERNAME_KEY = "voxmap_username";
 
@@ -34,7 +35,7 @@ export default function UsernamePicker({ onComplete }: UsernamePickerProps) {
   const [error, setError] = useState("");
 
   const handleSubmit = () => {
-    const trimmed = name.trim();
+    const trimmed = sanitizeUsername(name);
 
     if (trimmed.length < 2) {
       setError("Username must be at least 2 characters");
