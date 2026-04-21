@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
+import { canVote, recordVote } from "@/lib/rateLimit";
 
 interface DailyPollProps {
   lang: Lang;
@@ -146,6 +147,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
 
   const handleVote = async (index: number) => {
     if (voted || alreadyVoted) return;
+    if (!canVote()) return; // Anti-spam cooldown
     setSelectedOption(index);
 
     try {
@@ -184,6 +186,9 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     } catch (e) {
       console.error("Vote submission error:", e);
     }
+
+    // Record vote for rate limiting
+    recordVote();
 
     // Update streak
     const newStreak = updateStreak();

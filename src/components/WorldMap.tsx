@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
+import { canCreatePin, recordPinCreation } from "@/lib/rateLimit";
 
 // SOS Categories — original clean colors
 const SOS_CATEGORIES = [
@@ -39,6 +40,58 @@ interface Pin {
   helpful_count: number;
 }
 
+// ── Nearby Alert Logic ──
+const NEARBY_RADIUS_KM = 5;
+const ALERT_COOLDOWN_KEY = "voxmap_alert_cooldown";
+
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function canSendAlert(): boolean {
+  try {
+    const last = localStorage.getItem(ALERT_COOLDOWN_KEY);
+    if (!last) return true;
+    // Minimum 2 minutes between alerts
+    return Date.now() - parseInt(last) > 120000;
+  } catch { return true; }
+}
+
+function markAlertSent() {
+  try { localStorage.setItem(ALERT_COOLDOWN_KEY, Date.now().toString()); } catch {}
+}
+
+function sendNearbyAlert(pin: Pin, distKm: number) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  if (!canSendAlert()) return;
+
+  const cat = SOS_CATEGORIES.find((c) => c.id === pin.category);
+  const distText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
+
+  const title = `⚠️ ${cat?.icon || "📍"} Alert nearby — ${distText} away`;
+  const body = `${pin.category.toUpperCase()}${pin.urgency === "critical" ? " (CRITICAL)" : ""}: ${pin.note || "Emergency pin dropped near you."}`;
+
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: "SHOW_NOTIFICATION",
+      title,
+      body,
+      icon: "/icons/icon-192.png",
+    });
+  } else {
+    new Notification(title, { body, icon: "/icons/icon-192.png" });
+  }
+
+  markAlertSent();
+}
+
 interface WorldMapProps {
   lang: Lang;
 }
@@ -49,6 +102,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const markersRef = useRef<any[]>([]);
   const tr = t[lang];
   const [pins, setPins] = useState<Pin[]>([]);
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const [showCreatePin, setShowCreatePin] = useState(false);
   const [createStep, setCreateStep] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -65,6 +119,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          userLocationRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           if (mapInstanceRef.current) {
             mapInstanceRef.current.setView([pos.coords.latitude, pos.coords.longitude], 12);
           }
@@ -99,7 +154,17 @@ export default function WorldMap({ lang }: WorldMapProps) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "pins" },
         (payload) => {
-          setPins((prev) => [payload.new as Pin, ...prev]);
+          const newPin = payload.new as Pin;
+          setPins((prev) => [newPin, ...prev]);
+
+          // Check nearby alert
+          const loc = userLocationRef.current;
+          if (loc && newPin.lat && newPin.lng) {
+            const dist = getDistanceKm(loc.lat, loc.lng, newPin.lat, newPin.lng);
+            if (dist <= NEARBY_RADIUS_KM) {
+              sendNearbyAlert(newPin, dist);
+            }
+          }
         }
       )
       .subscribe();
@@ -203,6 +268,14 @@ export default function WorldMap({ lang }: WorldMapProps) {
   // Submit pin
   const handleSubmitPin = async () => {
     if (!selectedCategory || !selectedUrgency || isSubmitting) return;
+
+    // Rate limit check
+    const rateCheck = canCreatePin();
+    if (!rateCheck.allowed) {
+      alert(rateCheck.reason);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -247,6 +320,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
       if (error) {
         console.error("Pin creation error:", error);
       } else {
+        recordPinCreation();
         if (mapInstanceRef.current) {
           mapInstanceRef.current.setView([lat, lng], 14);
         }
