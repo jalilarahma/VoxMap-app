@@ -214,12 +214,16 @@ export default function WorldMap({ lang }: WorldMapProps) {
         zoom: 6,
         zoomControl: false,
         attributionControl: false,
+        maxBounds: [[-90, -180], [90, 180]],
+        maxBoundsViscosity: 1.0,
       });
 
       // Use CartoDB tiles with English-only labels
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
         subdomains: "abcd",
+        noWrap: true,
+        bounds: [[-90, -180], [90, 180]],
       }).addTo(map);
 
       // Zoom controls bottom-right — away from everything
