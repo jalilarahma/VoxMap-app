@@ -6,14 +6,17 @@ import { supabase, getDeviceId } from "@/lib/supabase";
 import { canCreatePin, recordPinCreation } from "@/lib/rateLimit";
 import { getUsername } from "@/components/UsernamePicker";
 
-// Parse pin note — format is "username||actual note" or just "note"
-function parsePinNote(note: string | null): { username: string; comment: string } {
-  if (!note) return { username: "Anonymous", comment: "" };
+// Parse pin note — format is "username||comment||photoDataUrl" or "username||comment" or just "note"
+function parsePinNote(note: string | null): { username: string; comment: string; photo: string | null } {
+  if (!note) return { username: "Anonymous", comment: "", photo: null };
   if (note.includes("||")) {
-    const [username, ...rest] = note.split("||");
-    return { username: username || "Anonymous", comment: rest.join("||") };
+    const parts = note.split("||");
+    const username = parts[0] || "Anonymous";
+    const comment = parts[1] || "";
+    const photo = parts[2] || null;
+    return { username, comment, photo };
   }
-  return { username: "Anonymous", comment: note };
+  return { username: "Anonymous", comment: note, photo: null };
 }
 
 // SOS Categories — original clean colors
@@ -119,6 +122,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedUrgency, setSelectedUrgency] = useState<string | null>(null);
   const [pinNote, setPinNote] = useState("");
+  const [pinPhoto, setPinPhoto] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeed, setShowFeed] = useState(false);
@@ -239,10 +243,11 @@ export default function WorldMap({ lang }: WorldMapProps) {
         }).addTo(mapInstanceRef.current);
 
         const timeAgo = getTimeAgo(pin.created_at);
-        const { username, comment } = parsePinNote(pin.note);
+        const { username, comment, photo } = parsePinNote(pin.note);
+        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${pin.lat},${pin.lng}`;
 
         marker.bindPopup(`
-          <div style="font-family:system-ui;min-width:200px;">
+          <div style="font-family:system-ui;min-width:220px;max-width:280px;">
             <div style="font-size:24px;text-align:center;margin-bottom:8px;">${cat.icon}</div>
             <div style="font-size:16px;font-weight:bold;text-align:center;color:${cat.color};">
               ${tr[pin.category as keyof typeof tr] || pin.category}
@@ -250,6 +255,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
             <div style="text-align:center;margin-top:6px;">
               <span style="color:#F59E0B;font-weight:600;font-size:13px;">@${username}</span>
             </div>
+            ${photo ? `<div style="margin-top:8px;border-radius:10px;overflow:hidden;"><img src="${photo}" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;" alt="Pin photo"/></div>` : ""}
             ${comment ? `<div style="background:#1e293b;border-radius:10px;padding:8px 12px;margin-top:8px;color:#e2e8f0;font-size:13px;line-height:1.4;border-left:3px solid ${cat.color};">${comment}</div>` : ""}
             ${pin.city ? `<div style="text-align:center;color:#94a3b8;margin-top:6px;font-size:11px;">📍 ${pin.city}</div>` : ""}
             <div style="text-align:center;margin-top:8px;">
@@ -262,8 +268,14 @@ export default function WorldMap({ lang }: WorldMapProps) {
             <div style="text-align:center;color:#64748b;margin-top:8px;font-size:11px;">
               ${timeAgo}
             </div>
+            <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer"
+              style="display:block;margin-top:10px;padding:8px 0;text-align:center;
+                background:linear-gradient(to right,#F59E0B,#EF4444);color:white;
+                border-radius:10px;font-size:13px;font-weight:bold;text-decoration:none;">
+              🧭 Navigate Here
+            </a>
           </div>
-        `);
+        `, { maxWidth: 300 });
 
         // Always-visible label on the map showing username + comment
         const tooltipEl = document.createElement("div");
@@ -345,9 +357,9 @@ export default function WorldMap({ lang }: WorldMapProps) {
         }
       }
 
-      // Encode username into note field: "username||comment"
+      // Encode username, comment, and photo into note field: "username||comment||photo"
       const username = getUsername() || "Anonymous";
-      const encodedNote = pinNote ? `${username}||${pinNote}` : `${username}||`;
+      const encodedNote = `${username}||${pinNote || ""}||${pinPhoto || ""}`;
 
       const { error } = await supabase.from("pins").insert({
         device_id: deviceId,
@@ -382,6 +394,36 @@ export default function WorldMap({ lang }: WorldMapProps) {
     setSelectedCategory(null);
     setSelectedUrgency(null);
     setPinNote("");
+    setPinPhoto(null);
+  };
+
+  // Compress and convert image to small base64 thumbnail
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxSize = 300; // Small thumbnail
+        let w = img.width;
+        let h = img.height;
+        if (w > h) { h = (h / w) * maxSize; w = maxSize; }
+        else { w = (w / h) * maxSize; h = maxSize; }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+          setPinPhoto(dataUrl);
+        }
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -522,21 +564,53 @@ export default function WorldMap({ lang }: WorldMapProps) {
               </>
             )}
 
-            {/* Step 2: Comment + Submit */}
+            {/* Step 2: Comment + Photo + Submit */}
             {createStep === 2 && (
               <>
                 <h3 className="text-xl font-bold mb-2">{tr.add_note}</h3>
-                <p className="text-sm text-slate-400 mb-4">Your comment will be visible on the map for everyone to see.</p>
+                <p className="text-sm text-slate-400 mb-4">Add a comment and/or photo — visible on the map for everyone.</p>
+
                 <textarea
                   value={pinNote}
                   onChange={(e) => setPinNote(e.target.value)}
-                  className="w-full h-32 bg-slate-800 rounded-xl p-4 text-white
+                  className="w-full h-24 bg-slate-800 rounded-xl p-4 text-white
                     border border-slate-700/50 focus:border-orange-500
                     focus:outline-none resize-none"
                   placeholder="What's happening? Describe the situation..."
                   maxLength={280}
                 />
                 <p className="text-xs text-slate-600 mt-1 text-right">{pinNote.length}/280</p>
+
+                {/* Photo upload */}
+                <div className="mt-3">
+                  {pinPhoto ? (
+                    <div className="relative">
+                      <img src={pinPhoto} alt="Pin photo" className="w-full h-40 object-cover rounded-xl border border-slate-700/50" />
+                      <button
+                        onClick={() => setPinPhoto(null)}
+                        className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center
+                          bg-black/70 rounded-full text-white text-sm hover:bg-red-500 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center gap-2 py-3 rounded-xl
+                      border-2 border-dashed border-slate-700 hover:border-orange-500
+                      text-slate-400 hover:text-orange-400 cursor-pointer transition-all">
+                      <span className="text-lg">📷</span>
+                      <span className="text-sm font-medium">Add Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
                 <button
                   onClick={handleSubmitPin}
                   disabled={isSubmitting}
