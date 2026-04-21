@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { canVote, recordVote } from "@/lib/rateLimit";
+import { getTodaysQuestion, getCategoryIcon, getCategoryColor } from "@/lib/questionScheduler";
 
 interface DailyPollProps {
   lang: Lang;
@@ -61,6 +62,20 @@ function getCurrentStreak(): number {
   return 0;
 }
 
+// ── City detection via reverse geocoding ──
+async function detectCity(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&addressdetails=1`,
+      { headers: { "Accept-Language": "en" } }
+    );
+    const data = await res.json();
+    return data?.address?.city || data?.address?.town || data?.address?.state || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
   const tr = t[lang];
   const [voted, setVoted] = useState(false);
@@ -72,6 +87,8 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
   const [totalVotes, setTotalVotes] = useState(0);
   const [streak, setStreak] = useState(0);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [userCity, setUserCity] = useState<string | null>(null);
+  const [cityRanking, setCityRanking] = useState<{ city: string; topOption: number; topPct: number; globalPct: number } | null>(null);
 
   useEffect(() => {
     setStreak(getCurrentStreak());
@@ -90,14 +107,16 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
         .single();
 
       if (error || !q) {
+        // Use the smart question scheduler as fallback
+        const scheduled = getTodaysQuestion();
         setQuestion({
           id: "fallback",
-          text_en: "Do you trust your government to act in the people's best interest?",
-          text_ar: "\u0647\u0644 \u062a\u062b\u0642 \u0628\u062d\u0643\u0648\u0645\u062a\u0643 \u0644\u062a\u0639\u0645\u0644 \u0644\u0645\u0635\u0644\u062d\u0629 \u0627\u0644\u0634\u0639\u0628\u061f",
-          text_ru: "\u0414\u043e\u0432\u0435\u0440\u044f\u0435\u0442\u0435 \u043b\u0438 \u0432\u044b \u0441\u0432\u043e\u0435\u043c\u0443 \u043f\u0440\u0430\u0432\u0438\u0442\u0435\u043b\u044c\u0441\u0442\u0432\u0443 \u0434\u0435\u0439\u0441\u0442\u0432\u043e\u0432\u0430\u0442\u044c \u0432 \u0438\u043d\u0442\u0435\u0440\u0435\u0441\u0430\u0445 \u043d\u0430\u0440\u043e\u0434\u0430?",
-          text_zh: "\u4f60\u4fe1\u4efb\u4f60\u7684\u653f\u5e9c\u4f1a\u4e3a\u4eba\u6c11\u7684\u6700\u4f73\u5229\u76ca\u884c\u4e8b\u5417\uff1f",
-          text_he: "\u05d4\u05d0\u05dd \u05d0\u05ea\u05d4 \u05e1\u05d5\u05de\u05da \u05e2\u05dc \u05d4\u05de\u05de\u05e9\u05dc\u05d4 \u05e9\u05dc\u05da \u05dc\u05e4\u05e2\u05d5\u05dc \u05dc\u05d8\u05d5\u05d1\u05ea \u05d4\u05e2\u05dd?",
-          text_fa: "\u0622\u06cc\u0627 \u0628\u0647 \u062f\u0648\u0644\u062a \u062e\u0648\u062f \u0627\u0639\u062a\u0645\u0627\u062f \u062f\u0627\u0631\u06cc\u062f \u06a9\u0647 \u0628\u0647 \u0646\u0641\u0639 \u0645\u0631\u062f\u0645 \u0639\u0645\u0644 \u06a9\u0646\u062f\u061f",
+          text_en: scheduled.text_en,
+          text_ar: scheduled.text_ar,
+          text_ru: null,
+          text_zh: null,
+          text_he: null,
+          text_fa: null,
         });
         setLoading(false);
         return;
@@ -132,7 +151,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
   async function fetchVoteCounts(questionId: string) {
     const { data: votes } = await supabase
       .from("votes")
-      .select("option_index")
+      .select("option_index, country_code")
       .eq("question_id", questionId);
 
     if (votes) {
@@ -142,6 +161,22 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
       });
       setVoteCounts(counts);
       setTotalVotes(votes.length);
+
+      // Compute local ranking if we know the user's city
+      const city = userCity;
+      if (city) {
+        const cityVotes = votes.filter((v) => v.country_code === city);
+        if (cityVotes.length >= 2) {
+          const cityCounts = [0, 0, 0, 0];
+          cityVotes.forEach((v) => {
+            if (v.option_index >= 0 && v.option_index <= 3) cityCounts[v.option_index]++;
+          });
+          const topIdx = cityCounts.indexOf(Math.max(...cityCounts));
+          const topPct = Math.round((cityCounts[topIdx] / cityVotes.length) * 100);
+          const globalPct = votes.length > 0 ? Math.round((counts[topIdx] / votes.length) * 100) : 0;
+          setCityRanking({ city, topOption: topIdx, topPct, globalPct });
+        }
+      }
     }
   }
 
@@ -154,12 +189,15 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
       const deviceId = await getDeviceId();
 
       let location = null;
+      let cityName: string | null = null;
       if (navigator.geolocation) {
         try {
           const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
             navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
           );
           location = `POINT(${pos.coords.longitude} ${pos.coords.latitude})`;
+          cityName = await detectCity(pos.coords.latitude, pos.coords.longitude);
+          if (cityName) setUserCity(cityName);
         } catch {}
       }
 
@@ -174,7 +212,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
           device_id: deviceId,
           option_index: index,
           location: location,
-          country_code: null,
+          country_code: cityName || null,
         });
 
         if (error) {
@@ -271,6 +309,20 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
             <div className="inline-flex items-center gap-2 bg-slate-800/80 rounded-2xl px-5 py-2.5 border border-orange-500/30">
               <span className="text-2xl">{streak >= 7 ? "\ud83d\udd25" : streak >= 3 ? "\u2b50" : "\u26a1"}</span>
               <span className="text-orange-400 font-bold text-lg">{streak} day streak!</span>
+            </div>
+          )}
+
+          {/* Local ranking card */}
+          {cityRanking && (
+            <div className="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50 text-left">
+              <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">📍 Local vs Global</p>
+              <p className="text-white text-sm leading-relaxed">
+                <span className="text-orange-400 font-bold">{cityRanking.city}</span> voted{" "}
+                <span className="text-white font-bold">{cityRanking.topPct}%</span>{" "}
+                {["Strongly Agree", "Agree", "Disagree", "Strongly Disagree"][cityRanking.topOption]}
+                {" vs "}
+                <span className="text-slate-300">{cityRanking.globalPct}%</span> globally
+              </p>
             </div>
           )}
 
