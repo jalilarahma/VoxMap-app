@@ -18,11 +18,11 @@ export const metadata: Metadata = {
     title: "VoxMap — The Living Voice of the People",
     description: "One question. Every day. The world answers. Vote, see how your city compares globally, and earn your crown.",
     type: "website",
-    url: "https://voxmap-app.vercel.app",
+    url: "https://vox-map-app.vercel.app",
     siteName: "VoxMap",
     images: [
       {
-        url: "https://voxmap-app.vercel.app/og-image.png",
+        url: "https://vox-map-app.vercel.app/og-image.png",
         width: 1200,
         height: 630,
         alt: "VoxMap — The Living Voice of the People",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "VoxMap — The Living Voice of the People",
     description: "One question. Every day. The world answers. What do YOU think?",
-    images: ["https://voxmap-app.vercel.app/og-image.png"],
+    images: ["https://vox-map-app.vercel.app/og-image.png"],
     creator: "@voxmap",
   },
   robots: {

@@ -243,7 +243,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     const myVote = selectedOption !== null ? optionLabels[selectedOption] : "";
     const questionText = question ? getQuestionText(question, "en") : "";
 
-    const shareText = `I voted "${myVote}" on VoxMap!\n\n"${questionText}"\n\nWhat do YOU think? Have your voice heard:\nhttps://voxmap-app.vercel.app`;
+    const shareText = `I voted "${myVote}" on VoxMap!\n\n"${questionText}"\n\nWhat do YOU think? Have your voice heard:\nhttps://vox-map-app.vercel.app`;
 
     if (navigator.share) {
       try {
@@ -268,7 +268,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     return { myVote, questionText };
   };
 
-  const shareUrl = "https://voxmap-app.vercel.app";
+  const shareUrl = "https://vox-map-app.vercel.app";
 
   const handleSocialShare = (platform: string) => {
     const { myVote, questionText } = getShareText();
