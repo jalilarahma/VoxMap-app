@@ -9,6 +9,7 @@ import Analytics from "@/components/Analytics";
 import NotificationPrompt, { scheduleNotificationCheck } from "@/components/NotificationPrompt";
 import UsernamePicker, { hasUsername, getUsername, setUsername as saveUsername } from "@/components/UsernamePicker";
 import Community from "@/components/Community";
+import Link from "next/link";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {

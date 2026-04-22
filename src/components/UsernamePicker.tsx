@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { sanitizeUsername } from "@/lib/security";
 
 const USERNAME_KEY = "voxmap_username";
@@ -134,6 +135,18 @@ export default function UsernamePicker({ onComplete }: UsernamePickerProps) {
         >
           Skip — stay anonymous
         </button>
+
+        {/* Legal links */}
+        <p className="text-center text-xs text-slate-600 mt-4">
+          By continuing, you agree to our{" "}
+          <Link href="/terms" className="text-orange-400/70 hover:text-orange-300 underline underline-offset-2 transition-colors">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="text-orange-400/70 hover:text-orange-300 underline underline-offset-2 transition-colors">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </div>
   );
