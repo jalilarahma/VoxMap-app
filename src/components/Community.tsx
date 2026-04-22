@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { getUsername } from "@/components/UsernamePicker";
-import { sanitizeText } from "@/lib/security";
+import {
+  sanitizeText,
+  moderateContent,
+  checkSpam,
+  recordPost,
+  reportPin,
+  REPORT_LABELS,
+  ReportReason,
+} from "@/lib/security";
 import { Lang, t } from "@/i18n/translations";
 
 interface CommunityPost {
@@ -98,12 +106,42 @@ export default function Community({ lang, onClose }: CommunityProps) {
     setLoading(false);
   }
 
+  const [postError, setPostError] = useState("");
+  const [reportingId, setReportingId] = useState<string | null>(null);
+  const [reportedIds, setReportedIds] = useState<string[]>([]);
+
+  // Load reported posts on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("voxmap_reported_pins");
+      setReportedIds(raw ? JSON.parse(raw) : []);
+    } catch {}
+  }, []);
+
   async function handlePost() {
     if (!newPost.trim() || isPosting) return;
+    setPostError("");
     setIsPosting(true);
 
     try {
       const clean = sanitizeText(newPost);
+
+      // ── Content moderation ──
+      const contentCheck = moderateContent(clean);
+      if (!contentCheck.allowed) {
+        setPostError(contentCheck.reason || "Message blocked.");
+        setIsPosting(false);
+        return;
+      }
+
+      // ── Spam detection ──
+      const spamCheck = checkSpam(clean);
+      if (!spamCheck.allowed) {
+        setPostError(spamCheck.reason || "Slow down.");
+        setIsPosting(false);
+        return;
+      }
+
       const encoded = `${sanitizeText(username)}||${clean}`;
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -130,7 +168,8 @@ export default function Community({ lang, onClose }: CommunityProps) {
       if (error) {
         console.error("Community post error:", error);
       } else {
-        addPoints(username, 5); // 5 points for posting
+        recordPost(clean); // track for spam detection
+        addPoints(username, 5);
         setNewPost("");
         setShowCompose(false);
         fetchPosts();
@@ -139,6 +178,19 @@ export default function Community({ lang, onClose }: CommunityProps) {
       console.error("Community post exception:", e);
     }
     setIsPosting(false);
+  }
+
+  async function handleReport(postId: string, reason: ReportReason) {
+    reportPin(postId);
+    setReportedIds((prev) => [...prev, postId]);
+    setReportingId(null);
+
+    // Also increment report count in Supabase (using helpful_count as negative signal when reported)
+    try {
+      await supabase.rpc("increment_report_count", { pin_id: postId });
+    } catch {
+      // Fallback: just mark locally, admin will see in reports
+    }
   }
 
   async function handleLike(post: CommunityPost) {
@@ -308,7 +360,7 @@ export default function Community({ lang, onClose }: CommunityProps) {
                     <button
                       onClick={() => {
                         const text = encodeURIComponent(
-                          `"${post.text}" — @${post.username} on VoxMap\n\nJoin the conversation:\nhttps://voxmap-app.vercel.app`
+                          `"${post.text}" — @${post.username} on VoxMap\n\nJoin the conversation:\nhttps://vox-map-app.vercel.app`
                         );
                         window.open(`https://wa.me/?text=${text}`, "_blank");
                       }}
@@ -316,7 +368,43 @@ export default function Community({ lang, onClose }: CommunityProps) {
                     >
                       📤 Share
                     </button>
+                    {/* Report button */}
+                    {reportedIds.includes(post.id) ? (
+                      <span className="text-xs text-slate-600">Reported</span>
+                    ) : (
+                      <button
+                        onClick={() => setReportingId(post.id)}
+                        className="text-slate-600 hover:text-red-400 text-sm transition-all ml-auto"
+                      >
+                        🚩
+                      </button>
+                    )}
                   </div>
+
+                  {/* Report modal for this post */}
+                  {reportingId === post.id && (
+                    <div className="mt-3 p-3 rounded-xl bg-slate-800 border border-red-500/30">
+                      <p className="text-xs text-slate-400 mb-2 font-semibold">Why are you reporting this?</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {(Object.entries(REPORT_LABELS) as [ReportReason, string][]).map(([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => handleReport(post.id, key)}
+                            className="text-xs text-left px-2.5 py-2 rounded-lg bg-slate-700/50
+                              hover:bg-red-500/20 hover:text-red-300 text-slate-400 transition-all"
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setReportingId(null)}
+                        className="text-xs text-slate-600 hover:text-slate-400 mt-2 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -354,6 +442,11 @@ export default function Community({ lang, onClose }: CommunityProps) {
               border border-slate-700/50 focus:border-orange-500
               focus:outline-none resize-none placeholder-slate-600"
           />
+          {postError && (
+            <p className="text-red-400 text-xs mt-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              ⚠️ {postError}
+            </p>
+          )}
           <div className="flex items-center justify-between mt-3">
             <p className="text-xs text-slate-600">{newPost.length}/280 · Earn 5 ⭐ for posting</p>
             <button

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { sanitizeUsername } from "@/lib/security";
+import { sanitizeUsername, moderateUsername } from "@/lib/security";
 
 const USERNAME_KEY = "voxmap_username";
 
@@ -48,6 +48,13 @@ export default function UsernamePicker({ onComplete }: UsernamePickerProps) {
     }
     if (!/^[a-zA-Z0-9_\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]+$/.test(trimmed)) {
       setError("Letters, numbers, underscores, and Arabic only");
+      return;
+    }
+
+    // Content moderation on username
+    const modResult = moderateUsername(trimmed);
+    if (!modResult.allowed) {
+      setError(modResult.reason || "Username not allowed");
       return;
     }
 
