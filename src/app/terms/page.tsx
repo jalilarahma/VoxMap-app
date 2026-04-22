@@ -75,7 +75,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-lg font-bold text-white mb-3">5. Emergency Pins Disclaimer</h2>
             <p>
-              VoxMap's emergency pin feature is a community tool and is NOT a replacement for official emergency
+              VoxMap&apos;s emergency pin feature is a community tool and is NOT a replacement for official emergency
               services. In case of a real emergency, always contact your local emergency number (911, 112, 999, etc.)
               first. VoxMap does not guarantee the accuracy, timeliness, or reliability of emergency pins posted by users.
               We are not liable for any actions taken based on information from emergency pins.
@@ -103,7 +103,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-lg font-bold text-white mb-3">8. Points & Gamification</h2>
             <p>
-              Points, streaks, and "Voice of the Week" status are for engagement purposes only and hold no monetary
+              Points, streaks, and &ldquo;Voice of the Week&rdquo; status are for engagement purposes only and hold no monetary
               value. We reserve the right to modify, reset, or remove the points system at any time.
             </p>
           </section>
@@ -111,7 +111,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-lg font-bold text-white mb-3">9. Limitation of Liability</h2>
             <p>
-              VoxMap is provided "as is" without warranties of any kind. We are not liable for any damages arising
+              VoxMap is provided &ldquo;as is&rdquo; without warranties of any kind. We are not liable for any damages arising
               from your use of the platform, including but not limited to loss of data, service interruptions,
               or actions taken based on content posted by other users.
             </p>
