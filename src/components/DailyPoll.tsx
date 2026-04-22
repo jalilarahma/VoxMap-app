@@ -260,16 +260,40 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     } catch {}
   };
 
-  // Share directly to WhatsApp
-  const handleWhatsAppShare = () => {
+  // Build share text
+  const getShareText = () => {
     const optionLabels = ["Agree", "Disagree"];
     const myVote = selectedOption !== null ? optionLabels[selectedOption] : "";
     const questionText = question ? getQuestionText(question, "en") : "";
+    return { myVote, questionText };
+  };
 
-    const text = encodeURIComponent(
-      `I voted "${myVote}" on VoxMap!\n\n"${questionText}"\n\nWhat do YOU think?\nhttps://voxmap-app.vercel.app`
-    );
-    window.open(`https://wa.me/?text=${text}`, "_blank");
+  const shareUrl = "https://voxmap-app.vercel.app";
+
+  const handleSocialShare = (platform: string) => {
+    const { myVote, questionText } = getShareText();
+    const text = `I voted "${myVote}" on VoxMap!\n\n"${questionText}"\n\nWhat do YOU think?`;
+    const encodedText = encodeURIComponent(text);
+    const encodedUrl = encodeURIComponent(shareUrl);
+
+    const urls: Record<string, string> = {
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(text + "\n" + shareUrl)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
+      instagram: "", // Instagram doesn't support URL sharing — copy to clipboard
+      tiktok: "", // TikTok doesn't support URL sharing — copy to clipboard
+      snapchat: `https://www.snapchat.com/scan?attachmentUrl=${encodedUrl}`,
+    };
+
+    if (platform === "instagram" || platform === "tiktok") {
+      navigator.clipboard.writeText(text + "\n" + shareUrl).then(() => {
+        setShowShareToast(true);
+        setTimeout(() => setShowShareToast(false), 3000);
+      });
+      return;
+    }
+
+    window.open(urls[platform], "_blank");
   };
 
   const options = [
@@ -357,28 +381,62 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
           )}
 
           {/* Share buttons */}
-          <div className="flex gap-3 justify-center mt-4">
+          <p className="text-xs text-slate-500 uppercase tracking-wider mt-4 mb-2">Share your vote</p>
+          <div className="flex gap-2 justify-center flex-wrap">
             <button
-              onClick={handleWhatsAppShare}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
-                bg-green-600 hover:bg-green-500 text-white
-                active:scale-95 transition-all"
+              onClick={() => handleSocialShare("whatsapp")}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-lg
+                bg-[#25D366] hover:brightness-110 active:scale-90 transition-all"
+              title="WhatsApp"
             >
-              Share on WhatsApp
+              💬
             </button>
             <button
-              onClick={handleShare}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
-                bg-slate-700 hover:bg-slate-600 text-white border border-slate-600
-                active:scale-95 transition-all"
+              onClick={() => handleSocialShare("twitter")}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-lg
+                bg-[#1DA1F2] hover:brightness-110 active:scale-90 transition-all"
+              title="Twitter / X"
             >
-              Share
+              𝕏
+            </button>
+            <button
+              onClick={() => handleSocialShare("facebook")}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-lg
+                bg-[#1877F2] hover:brightness-110 active:scale-90 transition-all"
+              title="Facebook"
+            >
+              f
+            </button>
+            <button
+              onClick={() => handleSocialShare("instagram")}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-lg
+                bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]
+                hover:brightness-110 active:scale-90 transition-all"
+              title="Instagram (copies to clipboard)"
+            >
+              📷
+            </button>
+            <button
+              onClick={() => handleSocialShare("tiktok")}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-lg
+                bg-black border border-slate-600 hover:brightness-110 active:scale-90 transition-all"
+              title="TikTok (copies to clipboard)"
+            >
+              🎵
+            </button>
+            <button
+              onClick={() => handleSocialShare("snapchat")}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-lg
+                bg-[#FFFC00] hover:brightness-110 active:scale-90 transition-all"
+              title="Snapchat"
+            >
+              👻
             </button>
           </div>
 
           {/* Copied toast */}
           {showShareToast && (
-            <p className="text-green-400 text-sm animate-pulse">Copied to clipboard!</p>
+            <p className="text-green-400 text-sm animate-pulse mt-2">Copied to clipboard! Paste it on Instagram or TikTok</p>
           )}
 
           <button
