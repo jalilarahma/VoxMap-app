@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-lg font-bold text-white mb-3">1. Introduction</h2>
             <p>
-              VoxMap ("we", "our", "us") is a live citizen sentiment mapping platform. We are committed to
+              VoxMap (&ldquo;we&rdquo;, &ldquo;our&rdquo;, &ldquo;us&rdquo;) is a live citizen sentiment mapping platform. We are committed to
               protecting your privacy and being transparent about how we handle your data. This policy explains
               what information we collect, how we use it, and your rights regarding your data.
             </p>
@@ -133,7 +133,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-white mb-3">8. Children's Privacy</h2>
+            <h2 className="text-lg font-bold text-white mb-3">8. Children&apos;s Privacy</h2>
             <p>
               VoxMap does not knowingly collect personal information from children under 13. The app is designed
               for general audiences and does not require any personal information to use. If you believe a child
