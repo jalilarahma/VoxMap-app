@@ -5,8 +5,8 @@ import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 export const metadata: Metadata = {
   title: "VoxMap — The Living Voice of the People",
   description:
-    "Real-time citizen sentiment mapping. Vote on daily questions, drop emergency pins, and see how the world really feels.",
-  keywords: ["sentiment", "polls", "map", "citizen", "voice", "emergency"],
+    "One question. Every day. The world answers. Vote, see how your city compares globally, and earn your crown. Join the movement.",
+  keywords: ["VoxMap", "world poll", "daily vote", "citizen voice", "global opinion", "sentiment map", "live poll", "emergency pins", "community"],
   manifest: "/manifest.json",
   themeColor: "#F59E0B",
   appleWebApp: {
@@ -15,9 +15,34 @@ export const metadata: Metadata = {
     title: "VoxMap",
   },
   openGraph: {
-    title: "VoxMap",
-    description: "The Living Voice of the People",
+    title: "VoxMap — The Living Voice of the People",
+    description: "One question. Every day. The world answers. Vote, see how your city compares globally, and earn your crown.",
     type: "website",
+    url: "https://voxmap-app.vercel.app",
+    siteName: "VoxMap",
+    images: [
+      {
+        url: "https://voxmap-app.vercel.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "VoxMap — The Living Voice of the People",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VoxMap — The Living Voice of the People",
+    description: "One question. Every day. The world answers. What do YOU think?",
+    images: ["https://voxmap-app.vercel.app/og-image.png"],
+    creator: "@voxmap",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  other: {
+    "og:image:type": "image/png",
   },
 };
 
