@@ -86,7 +86,7 @@ export default function SplashScreen({ lang, onEnter }: SplashScreenProps) {
             phase >= 0 ? "opacity-100 scale-100" : "opacity-0 scale-50"
           }`}
         >
-          <svg viewBox="0 0 120 120" width="100" height="100" className="mx-auto" style={{ animation: "spin 20s linear infinite" }}>
+          <svg viewBox="0 0 120 120" width="100" height="100" className="mx-auto animate-[spin_20s_linear_infinite]">
             <defs>
               <linearGradient id="globeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#f97316" />
@@ -212,13 +212,6 @@ export default function SplashScreen({ lang, onEnter }: SplashScreenProps) {
         </div>
       </div>
 
-      {/* CSS for globe spin */}
-      <style jsx>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
