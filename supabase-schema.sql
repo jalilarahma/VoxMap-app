@@ -148,6 +148,23 @@ CREATE POLICY "Regions are viewable by everyone"
   TO anon, authenticated
   USING (true);
 
+-- ─── Vote Location Function ─────────────────────────
+-- Returns votes with parsed lat/lng from GEOGRAPHY column
+CREATE OR REPLACE FUNCTION get_vote_locations(q_id UUID)
+RETURNS TABLE(option_index INT, lat DOUBLE PRECISION, lng DOUBLE PRECISION, country_code TEXT) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    v.option_index,
+    ST_Y(v.location::geometry) AS lat,
+    ST_X(v.location::geometry) AS lng,
+    v.country_code
+  FROM votes v
+  WHERE v.question_id = q_id
+    AND v.location IS NOT NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- ─── Enable Realtime ─────────────────────────────────
 ALTER PUBLICATION supabase_realtime ADD TABLE pins;
 ALTER PUBLICATION supabase_realtime ADD TABLE votes;

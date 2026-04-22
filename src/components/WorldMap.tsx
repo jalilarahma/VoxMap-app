@@ -337,9 +337,10 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
   // ── Vote Sentiment Heatmap ──
   // Shows colored circles on the map: green = agree, red = disagree
+  // Each vote location appears as a glowing circle so you can see
+  // "Doha is red, Lusail is green, Madrid is red with some green streets"
   useEffect(() => {
     if (!mapInstanceRef.current || !showVoteMap) {
-      // Clear vote markers if toggled off
       voteMarkersRef.current.forEach((m) => m.remove());
       voteMarkersRef.current = [];
       return;
@@ -358,44 +359,77 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
       if (!question) return;
 
+      // Use RPC to get votes with parsed lat/lng from GEOGRAPHY column
+      // Fallback: try direct select with ST_X/ST_Y parsing
       const { data: votes } = await supabase
-        .from("votes")
-        .select("option_index, location")
-        .eq("question_id", question.id);
+        .rpc("get_vote_locations", { q_id: question.id })
+        .then((res) => {
+          if (res.data && res.data.length > 0) return res;
+          // Fallback: direct query
+          return supabase
+            .from("votes")
+            .select("option_index, location, country_code")
+            .eq("question_id", question.id);
+        });
 
-      if (!votes) return;
+      if (!votes || votes.length === 0) return;
 
       import("leaflet").then((L) => {
         // Clear old vote markers
         voteMarkersRef.current.forEach((m) => m.remove());
         voteMarkersRef.current = [];
 
-        votes.forEach((vote) => {
-          if (!vote.location) return;
+        votes.forEach((vote: any) => {
+          let lat: number | null = null;
+          let lng: number | null = null;
 
-          // Parse POINT(lng lat) format
-          const match = vote.location.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
-          if (!match) return;
+          // RPC returns { lat, lng } directly
+          if (vote.lat !== undefined && vote.lng !== undefined) {
+            lat = vote.lat;
+            lng = vote.lng;
+          }
+          // Fallback: parse location field
+          else if (vote.location) {
+            if (typeof vote.location === "string") {
+              const match = vote.location.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
+              if (match) {
+                lng = parseFloat(match[1]);
+                lat = parseFloat(match[2]);
+              }
+            } else if (typeof vote.location === "object" && vote.location.coordinates) {
+              lng = vote.location.coordinates[0];
+              lat = vote.location.coordinates[1];
+            }
+          }
 
-          const lng = parseFloat(match[1]);
-          const lat = parseFloat(match[2]);
-          if (isNaN(lat) || isNaN(lng)) return;
+          if (lat === null || lng === null || isNaN(lat) || isNaN(lng)) return;
+          if (lat === 0 && lng === 0) return; // Skip null island
 
           // Green for agree (0), Red for disagree (1)
           const isAgree = vote.option_index === 0;
           const color = isAgree ? "#22C55E" : "#EF4444";
-          const opacity = 0.6;
 
-          const circle = L.circleMarker([lat, lng], {
-            radius: 18,
+          // Outer glow circle — big, soft
+          const glow = L.circleMarker([lat, lng], {
+            radius: 30,
             fillColor: color,
             color: "transparent",
             weight: 0,
-            fillOpacity: opacity,
-          }).addTo(mapInstanceRef.current);
+            fillOpacity: 0.15,
+          }).addTo(mapInstanceRef.current!);
+          voteMarkersRef.current.push(glow);
+
+          // Inner circle — solid, visible
+          const circle = L.circleMarker([lat, lng], {
+            radius: 10,
+            fillColor: color,
+            color: color,
+            weight: 1,
+            fillOpacity: 0.5,
+          }).addTo(mapInstanceRef.current!);
 
           circle.bindTooltip(
-            isAgree ? "✅ Agree" : "❌ Disagree",
+            `${isAgree ? "✅ Agree" : "❌ Disagree"}${vote.country_code ? " · " + vote.country_code : ""}`,
             { direction: "top", className: "pin-label" }
           );
 
