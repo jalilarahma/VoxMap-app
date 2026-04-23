@@ -32,7 +32,6 @@ export default function TimeLapse({ onClose }: TimeLapseProps) {
   const mapRef = useRef<any>(null);
   const animFrameRef = useRef<number | null>(null);
   const markersRef = useRef<any[]>([]);
-  const canvasOverlayRef = useRef<HTMLCanvasElement | null>(null);
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
@@ -324,9 +323,11 @@ export default function TimeLapse({ onClose }: TimeLapseProps) {
 
       // Use html2canvas-like approach: capture map tiles as background
       // Then draw vote dots frame by frame
-      const stream = canvas.captureStream(30); // 30 fps
+      const stream = (canvas as any).captureStream(30); // 30 fps
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "video/webm;codecs=vp9",
+        mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+          ? "video/webm;codecs=vp9"
+          : "video/webm",
         videoBitsPerSecond: 5000000,
       });
 
