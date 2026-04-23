@@ -12,6 +12,8 @@ import Community from "@/components/Community";
 import StealthProvider, { StealthToggle } from "@/components/StealthMode";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
+const TimeLapse = dynamic(() => import("@/components/TimeLapse"), { ssr: false });
+
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
   ssr: false,
   loading: () => (
@@ -30,6 +32,7 @@ export default function Home() {
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const [showUsernameEdit, setShowUsernameEdit] = useState(false);
   const [showCommunity, setShowCommunity] = useState(false);
+  const [showTimeLapse, setShowTimeLapse] = useState(false);
 
   // Start notification scheduler if already granted
   useEffect(() => {
@@ -47,6 +50,7 @@ export default function Home() {
     setShowCommunity(false);
     setShowUsernameEdit(false);
     setShowNotifPrompt(false);
+    setShowTimeLapse(false);
   }, []);
 
   return (
@@ -106,6 +110,16 @@ export default function Home() {
             >
               👤
             </button>
+            {/* Time-lapse button */}
+            <button
+              onClick={() => setShowTimeLapse(true)}
+              className="fixed bottom-56 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                hover:border-orange-400 transition-all text-sm"
+              title="Sentiment Time-Lapse"
+            >
+              🎬
+            </button>
             {/* Stealth mode toggle */}
             <StealthToggle />
           </>
@@ -121,6 +135,10 @@ export default function Home() {
 
         {showCommunity && (
           <Community lang={lang} onClose={() => setShowCommunity(false)} />
+        )}
+
+        {showTimeLapse && (
+          <TimeLapse onClose={() => setShowTimeLapse(false)} />
         )}
 
         {showUsernameEdit && (

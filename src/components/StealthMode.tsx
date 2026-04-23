@@ -269,7 +269,7 @@ export function StealthToggle() {
     <div className="relative">
       <button
         onClick={() => setShowMenu(!showMenu)}
-        className={`fixed bottom-44 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+        className={`fixed bottom-[17rem] left-4 z-[1500] w-10 h-10 flex items-center justify-center
           rounded-xl backdrop-blur-sm border transition-all text-sm
           ${isStealthy
             ? "bg-green-900/90 border-green-700/50 hover:border-green-400"
@@ -286,7 +286,7 @@ export function StealthToggle() {
           <div className="fixed inset-0 z-[2900]" onClick={() => setShowMenu(false)} />
 
           {/* Menu */}
-          <div className="fixed bottom-44 left-16 z-[3000] w-64 rounded-2xl overflow-hidden
+          <div className="fixed bottom-[17rem] left-16 z-[3000] w-64 rounded-2xl overflow-hidden
             bg-slate-900 border border-slate-700 shadow-2xl shadow-black/50">
 
             <div className="px-4 py-3 border-b border-slate-800">
