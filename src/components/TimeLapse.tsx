@@ -75,6 +75,7 @@ export default function TimeLapse({ onClose }: TimeLapseProps) {
   // ── Fetch votes for selected question ──
   useEffect(() => {
     if (!selectedQuestion) return;
+    const questionId = selectedQuestion.id;
 
     async function fetchVotes() {
       setLoadingVotes(true);
@@ -90,7 +91,7 @@ export default function TimeLapse({ onClose }: TimeLapseProps) {
 
       try {
         const { data } = await supabase.rpc("get_vote_timelapse", {
-          q_id: selectedQuestion.id,
+          q_id: questionId,
         });
         if (data && data.length > 0) {
           voteData = data;
@@ -100,7 +101,7 @@ export default function TimeLapse({ onClose }: TimeLapseProps) {
         const { data } = await supabase
           .from("votes")
           .select("option_index, location, created_at, country_code")
-          .eq("question_id", selectedQuestion.id)
+          .eq("question_id", questionId)
           .not("location", "is", null)
           .order("created_at", { ascending: true });
 
