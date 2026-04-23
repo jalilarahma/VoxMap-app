@@ -13,6 +13,7 @@ import StealthProvider, { StealthToggle } from "@/components/StealthMode";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
 const TimeLapse = dynamic(() => import("@/components/TimeLapse"), { ssr: false });
+const DailyInsight = dynamic(() => import("@/components/DailyInsight"), { ssr: false });
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
   ssr: false,
@@ -33,6 +34,7 @@ export default function Home() {
   const [showUsernameEdit, setShowUsernameEdit] = useState(false);
   const [showCommunity, setShowCommunity] = useState(false);
   const [showTimeLapse, setShowTimeLapse] = useState(false);
+  const [showInsight, setShowInsight] = useState(false);
 
   // Start notification scheduler if already granted
   useEffect(() => {
@@ -51,6 +53,7 @@ export default function Home() {
     setShowUsernameEdit(false);
     setShowNotifPrompt(false);
     setShowTimeLapse(false);
+    setShowInsight(false);
   }, []);
 
   return (
@@ -110,6 +113,16 @@ export default function Home() {
             >
               👤
             </button>
+            {/* Daily Insight button */}
+            <button
+              onClick={() => setShowInsight(true)}
+              className="fixed bottom-44 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                hover:border-orange-400 transition-all text-sm"
+              title="Daily Insight"
+            >
+              🧠
+            </button>
             {/* Time-lapse button */}
             <button
               onClick={() => setShowTimeLapse(true)}
@@ -139,6 +152,10 @@ export default function Home() {
 
         {showTimeLapse && (
           <TimeLapse onClose={() => setShowTimeLapse(false)} />
+        )}
+
+        {showInsight && (
+          <DailyInsight onClose={() => setShowInsight(false)} />
         )}
 
         {showUsernameEdit && (
