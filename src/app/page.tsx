@@ -14,6 +14,7 @@ import { Lang, RTL_LANGS } from "@/i18n/translations";
 
 const TimeLapse = dynamic(() => import("@/components/TimeLapse"), { ssr: false });
 const DailyInsight = dynamic(() => import("@/components/DailyInsight"), { ssr: false });
+const CityChallenge = dynamic(() => import("@/components/CityChallenge"), { ssr: false });
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
   ssr: false,
@@ -35,6 +36,7 @@ export default function Home() {
   const [showCommunity, setShowCommunity] = useState(false);
   const [showTimeLapse, setShowTimeLapse] = useState(false);
   const [showInsight, setShowInsight] = useState(false);
+  const [showCityChallenge, setShowCityChallenge] = useState(false);
 
   // Start notification scheduler if already granted
   useEffect(() => {
@@ -54,6 +56,7 @@ export default function Home() {
     setShowNotifPrompt(false);
     setShowTimeLapse(false);
     setShowInsight(false);
+    setShowCityChallenge(false);
   }, []);
 
   return (
@@ -133,6 +136,16 @@ export default function Home() {
             >
               🎬
             </button>
+            {/* City Challenge button — right side */}
+            <button
+              onClick={() => setShowCityChallenge(true)}
+              className="fixed bottom-8 right-4 z-[1500] w-10 h-10 flex items-center justify-center
+                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                hover:border-orange-400 transition-all text-sm"
+              title="City Challenge"
+            >
+              🏙️
+            </button>
             {/* Stealth mode toggle */}
             <StealthToggle />
           </>
@@ -156,6 +169,10 @@ export default function Home() {
 
         {showInsight && (
           <DailyInsight onClose={() => setShowInsight(false)} />
+        )}
+
+        {showCityChallenge && (
+          <CityChallenge onClose={() => setShowCityChallenge(false)} />
         )}
 
         {showUsernameEdit && (
