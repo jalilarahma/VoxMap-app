@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Lang, t } from "@/i18n/translations";
+import { useStealthMode, useSkinConfig } from "@/components/StealthMode";
 
 interface SplashScreenProps {
   lang: Lang;
@@ -10,6 +11,8 @@ interface SplashScreenProps {
 
 export default function SplashScreen({ lang, onEnter }: SplashScreenProps) {
   const tr = t[lang];
+  const { isStealthy } = useStealthMode();
+  const skinConfig = useSkinConfig();
   const [phase, setPhase] = useState(0);
   const [dots, setDots] = useState<{ x: number; y: number; color: string; delay: number }[]>([]);
 
@@ -128,23 +131,28 @@ export default function SplashScreen({ lang, onEnter }: SplashScreenProps) {
           <h1
             className="text-6xl md:text-8xl font-black mb-1"
             style={{
-              background: "linear-gradient(135deg, #f97316 0%, #ef4444 40%, #a855f7 100%)",
+              background: isStealthy
+                ? (skinConfig.appName === "Weather Today"
+                  ? "linear-gradient(135deg, #0EA5E9 0%, #38BDF8 40%, #7DD3FC 100%)"
+                  : "linear-gradient(135deg, #374151 0%, #4B5563 40%, #6B7280 100%)")
+                : "linear-gradient(135deg, #f97316 0%, #ef4444 40%, #a855f7 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               lineHeight: 1.1,
             }}
           >
-            {tr.app_name}
+            {isStealthy ? skinConfig.appName : tr.app_name}
           </h1>
           <p className="text-xs md:text-sm tracking-[0.4em] text-slate-500 uppercase mt-3 mb-2">
-            {tr.tagline}
+            {isStealthy ? skinConfig.tagline : tr.tagline}
           </p>
 
           {/* Live counter */}
           <div className="flex items-center justify-center gap-2 mt-4 mb-10">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span className="text-sm text-slate-400">
-              <span className="text-green-400 font-bold">{counter.toLocaleString()}</span> voices heard worldwide
+              <span className="text-green-400 font-bold">{counter.toLocaleString()}</span>
+              {isStealthy ? " locations tracked" : " voices heard worldwide"}
             </span>
           </div>
         </div>
@@ -155,26 +163,55 @@ export default function SplashScreen({ lang, onEnter }: SplashScreenProps) {
             phase >= 2 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
         >
-          <div className="space-y-2 mb-12">
-            <p className="text-lg md:text-xl text-slate-400 italic font-light">
-              &ldquo;{tr.slogan_1}
+          {!isStealthy && (
+            <div className="space-y-2 mb-12">
+              <p className="text-lg md:text-xl text-slate-400 italic font-light">
+                &ldquo;{tr.slogan_1}
+              </p>
+              <p className="text-lg md:text-xl text-slate-400 italic font-light">
+                {tr.slogan_2}
+              </p>
+              <p className="text-xl md:text-2xl font-bold text-white mt-3">
+                {tr.slogan_3}&rdquo;
+              </p>
+            </div>
+          )}
+
+          {isStealthy && skinConfig.appName === "Weather Today" && (
+            <p className="text-lg text-slate-400 mb-12">
+              Real-time weather updates and forecasts for your area.
             </p>
-            <p className="text-lg md:text-xl text-slate-400 italic font-light">
-              {tr.slogan_2}
+          )}
+
+          {isStealthy && skinConfig.appName === "Daily Brief" && (
+            <p className="text-lg text-slate-400 mb-12">
+              Your personalized news digest, updated every day.
             </p>
-            <p className="text-xl md:text-2xl font-bold text-white mt-3">
-              {tr.slogan_3}&rdquo;
-            </p>
-          </div>
+          )}
 
           {/* Feature pills */}
           <div className="flex flex-wrap gap-2 justify-center mb-10">
-            {[
-              { icon: "🗳️", text: "Vote Daily" },
-              { icon: "🗺️", text: "Live Map" },
-              { icon: "👑", text: "Earn Points" },
-              { icon: "🚨", text: "Emergency Alerts" },
-            ].map((f, i) => (
+            {(isStealthy
+              ? skinConfig.appName === "Weather Today"
+                ? [
+                    { icon: "🌤️", text: "Forecast" },
+                    { icon: "🌡️", text: "Temperature" },
+                    { icon: "💨", text: "Wind Speed" },
+                    { icon: "🌧️", text: "Rain Alerts" },
+                  ]
+                : [
+                    { icon: "📰", text: "Headlines" },
+                    { icon: "🌍", text: "World News" },
+                    { icon: "📊", text: "Trends" },
+                    { icon: "🔔", text: "Alerts" },
+                  ]
+              : [
+                  { icon: "🗳️", text: "Vote Daily" },
+                  { icon: "🗺️", text: "Live Map" },
+                  { icon: "👑", text: "Earn Points" },
+                  { icon: "🚨", text: "Emergency Alerts" },
+                ]
+            ).map((f, i) => (
               <div
                 key={i}
                 className="flex items-center gap-1.5 bg-slate-800/60 backdrop-blur-sm rounded-full px-3 py-1.5
@@ -205,10 +242,14 @@ export default function SplashScreen({ lang, onEnter }: SplashScreenProps) {
           >
             {/* Glow ring */}
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-purple-500 blur-lg opacity-30 group-hover:opacity-50 transition-opacity" />
-            <span className="relative">{tr.enter}</span>
+            <span className="relative">{isStealthy ? "Open App" : tr.enter}</span>
           </button>
 
-          <p className="text-xs text-slate-600 mt-6">Join people from 195+ countries</p>
+          <p className="text-xs text-slate-600 mt-6">
+            {isStealthy
+              ? (skinConfig.appName === "Weather Today" ? "Updated every hour" : "Updated every day")
+              : "Join people from 195+ countries"}
+          </p>
         </div>
       </div>
 

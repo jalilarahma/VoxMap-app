@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import SplashScreen from "@/components/SplashScreen";
 import DailyPoll from "@/components/DailyPoll";
@@ -9,7 +9,7 @@ import Analytics from "@/components/Analytics";
 import NotificationPrompt, { scheduleNotificationCheck } from "@/components/NotificationPrompt";
 import UsernamePicker, { hasUsername, getUsername, setUsername as saveUsername } from "@/components/UsernamePicker";
 import Community from "@/components/Community";
-import Link from "next/link";
+import StealthProvider, { StealthToggle } from "@/components/StealthMode";
 import { Lang, RTL_LANGS } from "@/i18n/translations";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
@@ -40,83 +40,96 @@ export default function Home() {
 
   const dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
 
+  // Panic handler: reset to splash screen with disguise active
+  const handlePanic = useCallback(() => {
+    setScreen("splash");
+    setShowAnalytics(false);
+    setShowCommunity(false);
+    setShowUsernameEdit(false);
+    setShowNotifPrompt(false);
+  }, []);
+
   return (
-    <div dir={dir}>
-      <LanguagePicker currentLang={lang} onChangeLang={setLang} />
+    <StealthProvider onPanic={handlePanic}>
+      <div dir={dir}>
+        <LanguagePicker currentLang={lang} onChangeLang={setLang} />
 
-      {screen === "splash" && (
-        <SplashScreen lang={lang} onEnter={() => {
-          if (hasUsername()) {
-            setScreen("poll");
-          } else {
-            setScreen("username");
-          }
-        }} />
-      )}
+        {screen === "splash" && (
+          <SplashScreen lang={lang} onEnter={() => {
+            if (hasUsername()) {
+              setScreen("poll");
+            } else {
+              setScreen("username");
+            }
+          }} />
+        )}
 
-      {screen === "username" && (
-        <UsernamePicker onComplete={() => setScreen("poll")} />
-      )}
+        {screen === "username" && (
+          <UsernamePicker onComplete={() => setScreen("poll")} />
+        )}
 
-      {screen === "poll" && (
-        <DailyPoll lang={lang} onComplete={() => {
-          setScreen("map");
-          setShowNotifPrompt(true);
-        }} />
-      )}
+        {screen === "poll" && (
+          <DailyPoll lang={lang} onComplete={() => {
+            setScreen("map");
+            setShowNotifPrompt(true);
+          }} />
+        )}
 
-      {screen === "map" && (
-        <>
-          <WorldMap lang={lang} />
-          {/* Analytics button — bottom left */}
-          <button
-            onClick={() => setShowAnalytics(true)}
-            className="fixed bottom-8 left-4 z-[1500] w-10 h-10 flex items-center justify-center
-              rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
-              hover:border-orange-400 transition-all text-sm"
-          >
-            📊
-          </button>
-          {/* Community button */}
-          <button
-            onClick={() => setShowCommunity(true)}
-            className="fixed bottom-20 left-4 z-[1500] w-10 h-10 flex items-center justify-center
-              rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
-              hover:border-orange-400 transition-all text-sm"
-          >
-            💬
-          </button>
-          {/* Profile/username button */}
-          <button
-            onClick={() => setShowUsernameEdit(true)}
-            className="fixed bottom-32 left-4 z-[1500] w-10 h-10 flex items-center justify-center
-              rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
-              hover:border-orange-400 transition-all text-sm"
-            title={`@${getUsername() || "Anonymous"}`}
-          >
-            👤
-          </button>
-        </>
-      )}
+        {screen === "map" && (
+          <>
+            <WorldMap lang={lang} />
+            {/* Analytics button — bottom left */}
+            <button
+              onClick={() => setShowAnalytics(true)}
+              className="fixed bottom-8 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                hover:border-orange-400 transition-all text-sm"
+            >
+              📊
+            </button>
+            {/* Community button */}
+            <button
+              onClick={() => setShowCommunity(true)}
+              className="fixed bottom-20 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                hover:border-orange-400 transition-all text-sm"
+            >
+              💬
+            </button>
+            {/* Profile/username button */}
+            <button
+              onClick={() => setShowUsernameEdit(true)}
+              className="fixed bottom-32 left-4 z-[1500] w-10 h-10 flex items-center justify-center
+                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                hover:border-orange-400 transition-all text-sm"
+              title={`@${getUsername() || "Anonymous"}`}
+            >
+              👤
+            </button>
+            {/* Stealth mode toggle */}
+            <StealthToggle />
+          </>
+        )}
 
-      {showAnalytics && (
-        <Analytics lang={lang} onClose={() => setShowAnalytics(false)} />
-      )}
+        {showAnalytics && (
+          <Analytics lang={lang} onClose={() => setShowAnalytics(false)} />
+        )}
 
-      {showNotifPrompt && (
-        <NotificationPrompt onDismiss={() => setShowNotifPrompt(false)} />
-      )}
+        {showNotifPrompt && (
+          <NotificationPrompt onDismiss={() => setShowNotifPrompt(false)} />
+        )}
 
-      {showCommunity && (
-        <Community lang={lang} onClose={() => setShowCommunity(false)} />
-      )}
+        {showCommunity && (
+          <Community lang={lang} onClose={() => setShowCommunity(false)} />
+        )}
 
-      {showUsernameEdit && (
-        <UsernamePicker onComplete={(name) => {
-          saveUsername(name);
-          setShowUsernameEdit(false);
-        }} />
-      )}
-    </div>
+        {showUsernameEdit && (
+          <UsernamePicker onComplete={(name) => {
+            saveUsername(name);
+            setShowUsernameEdit(false);
+          }} />
+        )}
+      </div>
+    </StealthProvider>
   );
 }
