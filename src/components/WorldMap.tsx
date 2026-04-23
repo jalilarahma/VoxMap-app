@@ -55,6 +55,34 @@ interface Pin {
   helpful_count: number;
 }
 
+interface TrustScore {
+  pin_id: string;
+  trust_score: number;
+  verify_count: number;
+  deny_count: number;
+  total_count: number;
+}
+
+// ── Trust Score Helpers ──
+function getTrustColor(score: number, total: number): string {
+  if (total === 0) return "#F59E0B"; // Yellow = unverified
+  if (score > 0.3) return "#22C55E"; // Green = community verified
+  if (score < -0.3) return "#EF4444"; // Red = community denied
+  return "#F59E0B"; // Yellow = mixed/uncertain
+}
+
+function getTrustLabel(score: number, total: number): string {
+  if (total === 0) return "Unverified";
+  if (score > 0.3) return "Verified";
+  if (score < -0.3) return "Disputed";
+  return "Under Review";
+}
+
+function getTrustGlow(score: number, total: number): number {
+  if (total === 0) return 0;
+  return Math.min(total * 0.15, 1); // More verifications = stronger glow
+}
+
 // ── Nearby Alert Logic ──
 const NEARBY_RADIUS_KM = 5;
 const ALERT_COOLDOWN_KEY = "voxmap_alert_cooldown";
@@ -130,18 +158,120 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [helpedCount, setHelpedCount] = useState(0);
   const [showVoteMap, setShowVoteMap] = useState(true);
   const voteMarkersRef = useRef<any[]>([]);
+  const [trustScores, setTrustScores] = useState<Record<string, TrustScore>>({});
+  const [verifiedPins, setVerifiedPins] = useState<string[]>([]); // pins this user already voted on
 
-  // Global report function for popup buttons
+  // Load locally verified pins
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("voxmap_verified_pins");
+      setVerifiedPins(raw ? JSON.parse(raw) : []);
+    } catch {}
+  }, []);
+
+  // Fetch trust scores for all pins
+  async function fetchTrustScores() {
+    try {
+      const { data } = await supabase.rpc("get_all_pin_trust_scores");
+      if (data) {
+        const map: Record<string, TrustScore> = {};
+        data.forEach((d: any) => {
+          map[d.pin_id] = {
+            pin_id: d.pin_id,
+            trust_score: d.trust_score || 0,
+            verify_count: d.verify_count || 0,
+            deny_count: d.deny_count || 0,
+            total_count: d.total_count || 0,
+          };
+        });
+        setTrustScores(map);
+      }
+    } catch (e) {
+      console.error("Trust score fetch error:", e);
+    }
+  }
+
+  // Fetch trust scores when pins change
+  useEffect(() => {
+    if (pins.length > 0) fetchTrustScores();
+  }, [pins]);
+
+  // Global report + verify/deny functions for popup buttons
   useEffect(() => {
     (window as any).__reportPin__ = (pinId: string) => {
       if (isPinReported(pinId)) return;
       reportPin(pinId);
       alert("Thank you for reporting. We'll review this pin.");
-      // Re-render markers to update button state
       setPins((prev) => [...prev]);
     };
-    return () => { delete (window as any).__reportPin__; };
-  }, []);
+
+    (window as any).__verifyPin__ = async (pinId: string, vote: string) => {
+      // Check if already voted
+      try {
+        const raw = localStorage.getItem("voxmap_verified_pins");
+        const verified = raw ? JSON.parse(raw) : [];
+        if (verified.includes(pinId)) {
+          alert("You already verified this pin.");
+          return;
+        }
+      } catch {}
+
+      const deviceId = await getDeviceId();
+      const loc = userLocationRef.current;
+      if (!loc) {
+        alert("Location needed to verify. Please enable location access.");
+        return;
+      }
+
+      // Find pin to calculate distance
+      const pin = pins.find((p) => p.id === pinId);
+      if (!pin) return;
+
+      const dist = getDistanceKm(loc.lat, loc.lng, pin.lat, pin.lng);
+
+      // Ensure auth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        await supabase.auth.signInAnonymously();
+      }
+
+      const { error } = await supabase.from("pin_verifications").insert({
+        pin_id: pinId,
+        device_id: deviceId,
+        vote: vote,
+        lat: loc.lat,
+        lng: loc.lng,
+        distance_km: Math.round(dist * 1000) / 1000,
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          alert("You already verified this pin.");
+        } else {
+          console.error("Verify error:", error);
+        }
+        return;
+      }
+
+      // Save locally
+      try {
+        const raw = localStorage.getItem("voxmap_verified_pins");
+        const verified = raw ? JSON.parse(raw) : [];
+        verified.push(pinId);
+        localStorage.setItem("voxmap_verified_pins", JSON.stringify(verified));
+        setVerifiedPins(verified);
+      } catch {}
+
+      // Refresh trust scores
+      fetchTrustScores();
+      alert(vote === "verify" ? "Thanks! Pin marked as verified." : "Thanks! Pin marked as disputed.");
+    };
+
+    return () => {
+      delete (window as any).__reportPin__;
+      delete (window as any).__verifyPin__;
+    };
+  }, [pins]);
 
   // Get user location
   useEffect(() => {
@@ -252,11 +382,45 @@ export default function WorldMap({ lang }: WorldMapProps) {
         const cat = SOS_CATEGORIES.find((c) => c.id === pin.category);
         if (!cat) return;
 
+        // Skip community posts (they're shown in Community feed, not map)
+        if (pin.category === "community") return;
+
+        // Trust score for this pin
+        const ts = trustScores[pin.id];
+        const trustScore = ts?.trust_score || 0;
+        const trustTotal = ts?.total_count || 0;
+        const trustColor = getTrustColor(trustScore, trustTotal);
+        const trustLabel = getTrustLabel(trustScore, trustTotal);
+        const trustGlow = getTrustGlow(trustScore, trustTotal);
+        const alreadyVerified = verifiedPins.includes(pin.id);
+
+        // Outer glow ring based on trust score
+        if (trustTotal > 0) {
+          L.circleMarker([pin.lat, pin.lng], {
+            radius: (pin.urgency === "critical" ? 12 : pin.urgency === "high" ? 10 : 8) + 6,
+            fillColor: trustColor,
+            color: trustColor,
+            weight: 0,
+            opacity: trustGlow * 0.6,
+            fillOpacity: trustGlow * 0.25,
+          }).addTo(mapInstanceRef.current);
+          markersRef.current.push(
+            L.circleMarker([pin.lat, pin.lng], {
+              radius: (pin.urgency === "critical" ? 12 : pin.urgency === "high" ? 10 : 8) + 6,
+              fillColor: trustColor,
+              color: trustColor,
+              weight: 0,
+              opacity: trustGlow * 0.6,
+              fillOpacity: trustGlow * 0.25,
+            }).addTo(mapInstanceRef.current)
+          );
+        }
+
         const marker = L.circleMarker([pin.lat, pin.lng], {
           radius: pin.urgency === "critical" ? 12 : pin.urgency === "high" ? 10 : 8,
           fillColor: cat.color,
-          color: "#fff",
-          weight: 2,
+          color: trustTotal > 0 ? trustColor : "#fff",
+          weight: trustTotal > 0 ? 3 : 2,
           opacity: 0.9,
           fillOpacity: 0.8,
         }).addTo(mapInstanceRef.current);
@@ -268,12 +432,46 @@ export default function WorldMap({ lang }: WorldMapProps) {
         const googleMapsUrl = `https://www.google.com/maps?q=${pin.lat},${pin.lng}`;
         const pinReported = isPinReported(pin.id);
 
+        // Trust score badge HTML
+        const trustBadgeHtml = `
+          <div style="text-align:center;margin-top:8px;">
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
+              border-radius:20px;font-size:11px;font-weight:700;
+              background:${trustColor}20;color:${trustColor};border:1px solid ${trustColor}40;">
+              ${trustLabel === "Verified" ? "✅" : trustLabel === "Disputed" ? "⚠️" : trustLabel === "Under Review" ? "🔍" : "❓"}
+              ${trustLabel}
+              ${trustTotal > 0 ? `<span style="opacity:0.7;font-weight:400;">(${ts?.verify_count || 0}↑ ${ts?.deny_count || 0}↓)</span>` : ""}
+            </span>
+          </div>
+        `;
+
+        // Verify/Deny buttons HTML
+        const verifyButtonsHtml = alreadyVerified
+          ? `<div style="text-align:center;margin-top:8px;color:#64748b;font-size:11px;">
+              ✓ You verified this pin
+            </div>`
+          : `<div style="display:flex;gap:6px;margin-top:8px;">
+              <button onclick="window.__verifyPin__('${pin.id}','verify')"
+                style="flex:1;padding:8px 0;text-align:center;background:#22C55E20;color:#22C55E;
+                  border:1px solid #22C55E40;border-radius:10px;font-size:12px;font-weight:700;
+                  cursor:pointer;font-family:system-ui;transition:all 0.2s;">
+                ✅ Verify
+              </button>
+              <button onclick="window.__verifyPin__('${pin.id}','deny')"
+                style="flex:1;padding:8px 0;text-align:center;background:#EF444420;color:#EF4444;
+                  border:1px solid #EF444440;border-radius:10px;font-size:12px;font-weight:700;
+                  cursor:pointer;font-family:system-ui;transition:all 0.2s;">
+                ❌ Deny
+              </button>
+            </div>`;
+
         marker.bindPopup(`
           <div style="font-family:system-ui;min-width:220px;max-width:280px;">
             <div style="font-size:24px;text-align:center;margin-bottom:8px;">${cat.icon}</div>
             <div style="font-size:16px;font-weight:bold;text-align:center;color:${cat.color};">
               ${tr[pin.category as keyof typeof tr] || pin.category}
             </div>
+            ${trustBadgeHtml}
             <div style="text-align:center;margin-top:6px;">
               <span style="color:#F59E0B;font-weight:600;font-size:13px;">@${username}</span>
             </div>
@@ -290,8 +488,9 @@ export default function WorldMap({ lang }: WorldMapProps) {
             <div style="text-align:center;color:#64748b;margin-top:8px;font-size:11px;">
               ${timeAgo}
             </div>
+            ${verifyButtonsHtml}
             <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer"
-              style="display:block;margin-top:10px;padding:8px 0;text-align:center;
+              style="display:block;margin-top:8px;padding:8px 0;text-align:center;
                 background:linear-gradient(to right,#F59E0B,#EF4444);color:white;
                 border-radius:10px;font-size:13px;font-weight:bold;text-decoration:none;">
               📍 Open in Google Maps
@@ -333,7 +532,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
         markersRef.current.push(marker);
       });
     });
-  }, [pins, lang]);
+  }, [pins, lang, trustScores, verifiedPins]);
 
   // ── Vote Sentiment Heatmap ──
   // Shows colored circles on the map: green = agree, red = disagree
