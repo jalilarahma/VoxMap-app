@@ -97,47 +97,45 @@ export default function Home() {
           <>
             <WorldMap lang={lang} />
 
-            {/* ── Left side buttons (simplified) ── */}
-
-            {/* Intelligence Hub (replaces Analytics + Insights + Annotations) */}
-            <button
-              onClick={() => setShowIntelHub(true)}
-              className="fixed bottom-8 left-4 z-[1500] w-10 h-10 flex items-center justify-center
-                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
-                hover:border-orange-400 transition-all text-sm"
-              title="Intelligence Hub"
-            >
-              📊
-            </button>
-            {/* Community */}
-            <button
-              onClick={() => setShowCommunity(true)}
-              className="fixed bottom-20 left-4 z-[1500] w-10 h-10 flex items-center justify-center
-                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
-                hover:border-orange-400 transition-all text-sm"
-            >
-              💬
-            </button>
-            {/* Profile */}
-            <button
-              onClick={() => setShowUsernameEdit(true)}
-              className="fixed bottom-32 left-4 z-[1500] w-10 h-10 flex items-center justify-center
-                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
-                hover:border-orange-400 transition-all text-sm"
-              title={`@${getUsername() || "Anonymous"}`}
-            >
-              👤
-            </button>
-            {/* Time-Lapse */}
-            <button
-              onClick={() => setShowTimeLapse(true)}
-              className="fixed bottom-44 left-4 z-[1500] w-10 h-10 flex items-center justify-center
-                rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
-                hover:border-orange-400 transition-all text-sm"
-              title="Sentiment Time-Lapse"
-            >
-              🎬
-            </button>
+            {/* ── Left side buttons ── */}
+            <div className="fixed left-4 bottom-6 z-[1500] flex flex-col-reverse gap-3">
+              <button
+                onClick={() => setShowIntelHub(true)}
+                className="w-11 h-11 flex items-center justify-center rounded-xl
+                  bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                  hover:border-orange-400 transition-all text-sm"
+                title="Intelligence Hub"
+              >
+                📊
+              </button>
+              <button
+                onClick={() => setShowCommunity(true)}
+                className="w-11 h-11 flex items-center justify-center rounded-xl
+                  bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                  hover:border-orange-400 transition-all text-sm"
+                title="Community"
+              >
+                💬
+              </button>
+              <button
+                onClick={() => setShowUsernameEdit(true)}
+                className="w-11 h-11 flex items-center justify-center rounded-xl
+                  bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                  hover:border-orange-400 transition-all text-sm"
+                title={`@${getUsername() || "Anonymous"}`}
+              >
+                👤
+              </button>
+              <button
+                onClick={() => setShowTimeLapse(true)}
+                className="w-11 h-11 flex items-center justify-center rounded-xl
+                  bg-slate-900/90 backdrop-blur-sm border border-slate-700/50
+                  hover:border-orange-400 transition-all text-sm"
+                title="Sentiment Time-Lapse"
+              >
+                🎬
+              </button>
+            </div>
             {/* Stealth Mode */}
             <StealthToggle />
 
