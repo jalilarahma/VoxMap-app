@@ -64,16 +64,21 @@ function getCurrentStreak(): number {
 }
 
 // ── City detection via reverse geocoding ──
-async function detectCity(lat: number, lng: number): Promise<string | null> {
+async function detectLocation(lat: number, lng: number): Promise<{
+  city: string | null;
+  countryCode: string | null;
+}> {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&addressdetails=1`,
       { headers: { "Accept-Language": "en" } }
     );
     const data = await res.json();
-    return data?.address?.city || data?.address?.town || data?.address?.state || null;
+    const city = data?.address?.city || data?.address?.town || data?.address?.state || null;
+    const countryCode = data?.address?.country_code?.toUpperCase() || null;
+    return { city, countryCode };
   } catch {
-    return null;
+    return { city: null, countryCode: null };
   }
 }
 
@@ -191,6 +196,7 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
 
       let location = null;
       let cityName: string | null = null;
+      let countryCode: string | null = null;
       if (navigator.geolocation) {
         try {
           const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -198,7 +204,9 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
           );
           const fuzzed = fuzzGPS(pos.coords.latitude, pos.coords.longitude);
           location = `POINT(${fuzzed.lng} ${fuzzed.lat})`;
-          cityName = await detectCity(pos.coords.latitude, pos.coords.longitude);
+          const locData = await detectLocation(pos.coords.latitude, pos.coords.longitude);
+          cityName = locData.city;
+          countryCode = locData.countryCode;
           if (cityName) setUserCity(cityName);
         } catch {}
       }
@@ -214,7 +222,8 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
           device_id: deviceId,
           option_index: index,
           location: location,
-          country_code: cityName || null,
+          country_code: countryCode || null,
+          region: cityName || null,
         });
 
         if (error) {
