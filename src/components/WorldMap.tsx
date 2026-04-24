@@ -264,9 +264,14 @@ export default function WorldMap({ lang }: WorldMapProps) {
         setVerifiedPins(verified);
       } catch {}
 
+      // If deny, also auto-report for admin review
+      if (vote === "deny") {
+        reportPin(pinId);
+      }
+
       // Refresh trust scores
       fetchTrustScores();
-      alert(vote === "verify" ? "Thanks! Pin marked as verified." : "Thanks! Pin marked as disputed.");
+      alert(vote === "verify" ? "Thanks! Pin marked as verified." : "Thanks! Pin marked as disputed and flagged for review.");
     };
 
     return () => {
@@ -497,13 +502,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
                 border-radius:10px;font-size:13px;font-weight:bold;text-decoration:none;">
               📍 Open in Google Maps
             </a>
-            <button onclick="window.__reportPin__('${pin.id}')"
-              style="display:block;width:100%;margin-top:6px;padding:6px 0;text-align:center;
-                background:transparent;color:${pinReported ? "#64748b" : "#94a3b8"};
-                border:1px solid #1e293b;border-radius:10px;font-size:11px;cursor:pointer;
-                font-family:system-ui;">
-              ${pinReported ? "✓ Reported" : "🚩 Report this pin"}
-            </button>
+            ${pinReported ? `<p style="text-align:center;margin-top:6px;color:#64748b;font-size:11px;">✓ Flagged for review</p>` : ""}
           </div>
         `, { maxWidth: 300 });
 
