@@ -35,7 +35,31 @@ interface VoteStat {
   disagree: number;
 }
 
-type Tab = "dashboard" | "questions" | "community" | "pins" | "votes";
+interface Partner {
+  id: string;
+  name: string;
+  type: string;
+  email: string;
+  api_key: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface Annotation {
+  id: string;
+  partner_id: string;
+  annotation_type: string;
+  title: string;
+  body: string;
+  severity: string;
+  is_approved: boolean;
+  is_visible: boolean;
+  created_at: string;
+  lat: number;
+  lng: number;
+}
+
+type Tab = "dashboard" | "questions" | "community" | "pins" | "votes" | "partners" | "annotations";
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -64,6 +88,12 @@ export default function AdminPage() {
   // Vote stats
   const [voteStats, setVoteStats] = useState<VoteStat[]>([]);
 
+  // Partners & Annotations
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [newPartner, setNewPartner] = useState({ name: "", type: "ngo", email: "" });
+  const [showAddPartner, setShowAddPartner] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   function handleLogin() {
@@ -87,6 +117,8 @@ export default function AdminPage() {
     if (tab === "community") fetchCommunity();
     if (tab === "pins") fetchPins();
     if (tab === "votes") fetchVoteStats();
+    if (tab === "partners") fetchPartners();
+    if (tab === "annotations") fetchAnnotations();
   }, [tab, authenticated]);
 
   async function fetchDashboard() {
@@ -182,6 +214,65 @@ export default function AdminPage() {
     }
     setVoteStats(stats);
     setLoading(false);
+  }
+
+  // ── Partner & Annotation Fetch ──
+  async function fetchPartners() {
+    setLoading(true);
+    const { data } = await supabase
+      .from("verified_partners")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setPartners(data || []);
+    setLoading(false);
+  }
+
+  async function fetchAnnotations() {
+    setLoading(true);
+    const { data } = await supabase
+      .from("fact_check_annotations")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setAnnotations(data || []);
+    setLoading(false);
+  }
+
+  function generateApiKey(): string {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let key = "vxm_";
+    for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
+    return key;
+  }
+
+  async function addPartner() {
+    if (!newPartner.name || !newPartner.email) return;
+    const apiKey = generateApiKey();
+    await supabase.auth.signInAnonymously();
+    await supabase.from("verified_partners").insert({
+      name: newPartner.name,
+      type: newPartner.type,
+      email: newPartner.email,
+      api_key: apiKey,
+    });
+    setNewPartner({ name: "", type: "ngo", email: "" });
+    setShowAddPartner(false);
+    fetchPartners();
+  }
+
+  async function togglePartner(id: string, active: boolean) {
+    await supabase.from("verified_partners").update({ is_active: !active }).eq("id", id);
+    fetchPartners();
+  }
+
+  async function approveAnnotation(id: string) {
+    await supabase.from("fact_check_annotations").update({ is_approved: true }).eq("id", id);
+    fetchAnnotations();
+  }
+
+  async function rejectAnnotation(id: string) {
+    await supabase.from("fact_check_annotations").update({ is_visible: false, is_approved: false }).eq("id", id);
+    fetchAnnotations();
   }
 
   // ── Question CRUD ──
@@ -291,6 +382,8 @@ export default function AdminPage() {
     { key: "community", label: "Community", icon: "💬" },
     { key: "pins", label: "Pins", icon: "📍" },
     { key: "votes", label: "Votes", icon: "🗳️" },
+    { key: "partners", label: "Partners", icon: "🤝" },
+    { key: "annotations", label: "Annotations", icon: "📋" },
   ];
 
   const categories = [
@@ -654,6 +747,162 @@ export default function AdminPage() {
                           <span className="text-green-400">{agreePct}%</span> / <span className="text-red-400">{disagreePct}%</span>
                           <span className="text-slate-600 ml-2">({stat.total_votes})</span>
                         </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Partners Tab ═══ */}
+        {tab === "partners" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-300">Verified Partners</h2>
+              <button
+                onClick={() => setShowAddPartner(!showAddPartner)}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+              >
+                + Add Partner
+              </button>
+            </div>
+
+            {showAddPartner && (
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 space-y-3">
+                <input
+                  type="text"
+                  placeholder="Partner name (e.g. Amnesty International)"
+                  value={newPartner.name}
+                  onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm"
+                />
+                <input
+                  type="email"
+                  placeholder="Contact email"
+                  value={newPartner.email}
+                  onChange={(e) => setNewPartner({ ...newPartner, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm"
+                />
+                <select
+                  value={newPartner.type}
+                  onChange={(e) => setNewPartner({ ...newPartner, type: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm"
+                >
+                  <option value="ngo">NGO</option>
+                  <option value="academic">Academic / Research</option>
+                  <option value="journalist">Journalist / Fact-Checker</option>
+                  <option value="government">Government / Transparency</option>
+                </select>
+                <button
+                  onClick={addPartner}
+                  className="w-full py-2 rounded-lg text-sm font-bold bg-cyan-500 text-white"
+                >
+                  Generate API Key & Add Partner
+                </button>
+              </div>
+            )}
+
+            {loading ? (
+              <p className="text-slate-500 text-center py-8 animate-pulse">Loading...</p>
+            ) : partners.length === 0 ? (
+              <p className="text-slate-500 text-center py-8">No partners yet</p>
+            ) : (
+              <div className="space-y-3">
+                {partners.map((p) => (
+                  <div key={p.id} className="bg-slate-900 rounded-xl border border-slate-800 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <span className="text-white font-bold text-sm">{p.name}</span>
+                        <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                          p.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                        }`}>
+                          {p.is_active ? "Active" : "Disabled"}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => togglePartner(p.id, p.is_active)}
+                        className="text-xs px-3 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+                      >
+                        {p.is_active ? "Disable" : "Enable"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500">{p.type} · {p.email}</p>
+                    <div className="mt-2 p-2 rounded-lg bg-slate-800">
+                      <p className="text-[10px] text-slate-600 mb-1">API Key:</p>
+                      <code className="text-xs text-cyan-400 break-all">{p.api_key}</code>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Annotations Tab ═══ */}
+        {tab === "annotations" && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-slate-300">Fact-Check Annotations</h2>
+
+            {loading ? (
+              <p className="text-slate-500 text-center py-8 animate-pulse">Loading...</p>
+            ) : annotations.length === 0 ? (
+              <p className="text-slate-500 text-center py-8">No annotations yet. Partners will submit them via API.</p>
+            ) : (
+              <div className="space-y-3">
+                {annotations.map((a) => {
+                  const typeColors: Record<string, string> = {
+                    context: "#06b6d4", correction: "#f97316",
+                    correlation: "#a855f7", warning: "#ef4444",
+                  };
+                  const color = typeColors[a.annotation_type] || "#94a3b8";
+
+                  return (
+                    <div key={a.id} className="bg-slate-900 rounded-xl border border-slate-800 p-4"
+                      style={{ borderLeftColor: color, borderLeftWidth: 3 }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: `${color}20`, color }}>
+                            {a.annotation_type.toUpperCase()}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            a.severity === "critical" ? "bg-red-500/20 text-red-400" :
+                            a.severity === "notable" ? "bg-orange-500/20 text-orange-400" :
+                            "bg-slate-700 text-slate-400"
+                          }`}>
+                            {a.severity}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            a.is_approved ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"
+                          }`}>
+                            {a.is_approved ? "Approved" : "Pending Review"}
+                          </span>
+                        </div>
+                      </div>
+                      <h3 className="text-white font-bold text-sm mb-1">{a.title}</h3>
+                      <p className="text-slate-400 text-xs mb-3 leading-relaxed">
+                        {a.body.length > 150 ? a.body.slice(0, 150) + "..." : a.body}
+                      </p>
+                      <p className="text-slate-600 text-[10px] mb-3">
+                        Lat: {a.lat.toFixed(2)}, Lng: {a.lng.toFixed(2)} · {new Date(a.created_at).toLocaleDateString()}
+                      </p>
+                      <div className="flex gap-2">
+                        {!a.is_approved && (
+                          <button
+                            onClick={() => approveAnnotation(a.id)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/20 text-green-400"
+                          >
+                            Approve
+                          </button>
+                        )}
+                        <button
+                          onClick={() => rejectAnnotation(a.id)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/20 text-red-400"
+                        >
+                          {a.is_visible ? "Hide" : "Already Hidden"}
+                        </button>
                       </div>
                     </div>
                   );

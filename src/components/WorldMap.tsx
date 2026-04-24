@@ -159,6 +159,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [showVoteMap, setShowVoteMap] = useState(true);
   const voteMarkersRef = useRef<any[]>([]);
   const [trustScores, setTrustScores] = useState<Record<string, TrustScore>>({});
+  const [showFactCheck, setShowFactCheck] = useState(true);
+  const factCheckMarkersRef = useRef<any[]>([]);
   const [verifiedPins, setVerifiedPins] = useState<string[]>([]); // pins this user already voted on
 
   // Load locally verified pins
@@ -640,6 +642,106 @@ export default function WorldMap({ lang }: WorldMapProps) {
     fetchVoteLocations();
   }, [showVoteMap]);
 
+  // ── Fact-Check Annotation Overlay ──
+  useEffect(() => {
+    // Clear existing
+    factCheckMarkersRef.current.forEach((m) => m.remove());
+    factCheckMarkersRef.current = [];
+
+    if (!mapInstanceRef.current || !showFactCheck) return;
+
+    async function fetchAnnotations() {
+      try {
+        const res = await fetch("/api/annotations");
+        const data = await res.json();
+        if (!data.annotations || data.annotations.length === 0) return;
+
+        const L = await import("leaflet");
+
+        const typeConfig: Record<string, { color: string; icon: string }> = {
+          context: { color: "#06b6d4", icon: "i" },
+          correction: { color: "#f97316", icon: "!" },
+          correlation: { color: "#a855f7", icon: "~" },
+          warning: { color: "#ef4444", icon: "!!" },
+        };
+
+        data.annotations.forEach((ann: any) => {
+          const config = typeConfig[ann.annotation_type] || typeConfig.context;
+
+          // Radius circle (affected area)
+          const radiusCircle = L.circle([ann.lat, ann.lng], {
+            radius: (ann.radius_km || 50) * 1000,
+            fillColor: config.color,
+            color: config.color,
+            weight: 1,
+            fillOpacity: 0.05,
+            opacity: 0.3,
+            dashArray: "5,5",
+          }).addTo(mapInstanceRef.current);
+
+          // Marker dot
+          const marker = L.circleMarker([ann.lat, ann.lng], {
+            radius: ann.severity === "critical" ? 10 : 8,
+            fillColor: config.color,
+            color: "#ffffff",
+            weight: 2,
+            fillOpacity: 0.9,
+          }).addTo(mapInstanceRef.current);
+
+          // Popup
+          const severityBadge = ann.severity === "critical"
+            ? `<span style="background:#ef444430;color:#ef4444;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;">CRITICAL</span>`
+            : ann.severity === "notable"
+            ? `<span style="background:#f9731630;color:#f97316;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;">NOTABLE</span>`
+            : `<span style="background:#06b6d430;color:#06b6d4;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;">INFO</span>`;
+
+          const typeBadge = `<span style="background:${config.color}20;color:${config.color};padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;">${ann.annotation_type.toUpperCase()}</span>`;
+
+          marker.bindPopup(`
+            <div style="font-family:system-ui;min-width:240px;max-width:300px;">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                ${typeBadge} ${severityBadge}
+              </div>
+              <h3 style="font-size:15px;font-weight:800;color:white;margin-bottom:6px;line-height:1.3;">
+                ${ann.title}
+              </h3>
+              <p style="font-size:12px;color:#cbd5e1;line-height:1.5;margin-bottom:10px;">
+                ${ann.body.length > 200 ? ann.body.slice(0, 200) + "..." : ann.body}
+              </p>
+              ${ann.source_url ? `<a href="${ann.source_url}" target="_blank" rel="noopener noreferrer"
+                style="display:inline-block;font-size:11px;color:#06b6d4;text-decoration:underline;margin-bottom:8px;">
+                View source
+              </a>` : ""}
+              <div style="border-top:1px solid #1e293b;padding-top:8px;display:flex;align-items:center;gap:6px;">
+                <div style="width:6px;height:6px;border-radius:50%;background:#22c55e;"></div>
+                <span style="font-size:11px;color:#94a3b8;">
+                  Verified by <strong style="color:white;">${ann.partner_name}</strong>
+                  <span style="color:#64748b;"> (${ann.partner_type})</span>
+                </span>
+              </div>
+            </div>
+          `, { maxWidth: 320 });
+
+          // Tooltip label
+          marker.bindTooltip(
+            `<div style="font-family:system-ui;">
+              <div style="color:${config.color};font-weight:700;font-size:10px;">${ann.annotation_type.toUpperCase()}</div>
+              <div style="color:#e2e8f0;font-size:11px;max-width:160px;white-space:normal;">${ann.title}</div>
+              <div style="color:#64748b;font-size:9px;margin-top:2px;">by ${ann.partner_name}</div>
+            </div>`,
+            { permanent: false, direction: "right", offset: [10, 0], className: "pin-label" }
+          );
+
+          factCheckMarkersRef.current.push(radiusCircle, marker);
+        });
+      } catch (e) {
+        console.error("Fact-check fetch error:", e);
+      }
+    }
+
+    fetchAnnotations();
+  }, [showFactCheck]);
+
   function getTimeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -831,6 +933,20 @@ export default function WorldMap({ lang }: WorldMapProps) {
           )}
         </div>
       )}
+
+      {/* Fact-Check toggle — top right */}
+      <button
+        onClick={() => setShowFactCheck(!showFactCheck)}
+        className={`absolute top-4 right-4 z-[1000] px-3 py-2 rounded-xl text-xs font-bold
+          backdrop-blur-sm transition-all flex items-center gap-1.5
+          ${showFactCheck
+            ? "bg-cyan-500/20 border border-cyan-500/40 text-cyan-400"
+            : "bg-slate-900/80 border border-slate-700/50 text-slate-500"
+          }`}
+      >
+        <span className="text-sm">{showFactCheck ? "✅" : "📋"}</span>
+        Fact-Check
+      </button>
 
       {/* SOS Button — clean, bottom center */}
       <button
