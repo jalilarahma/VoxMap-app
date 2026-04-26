@@ -22,25 +22,47 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const days = parseInt(searchParams.get("days") || "7");
     const validDays = Math.min(Math.max(days, 1), 30);
+    const debug = searchParams.get("debug") === "true";
 
-    // Try RPC function first
+    // Debug mode: show raw vote data with region info
+    if (debug) {
+      const { data: allVotes, error: dbErr } = await supabase
+        .from("votes")
+        .select("id, region, country_code, device_id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      return NextResponse.json({
+        debug: true,
+        total_votes: allVotes?.length || 0,
+        votes_with_region: allVotes?.filter((v: { region: string | null }) => v.region)?.length || 0,
+        recent_votes: allVotes,
+        db_error: dbErr,
+      }, { headers: corsHeaders });
+    }
+
+    // Try RPC function first, then fallback to direct query
     let cities = null;
-    try {
-      const { data } = await supabase.rpc("get_city_leaderboard", {
-        days_back: validDays,
-      });
-      cities = data;
-    } catch {
-      // Fallback: direct query aggregation
+
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_city_leaderboard", {
+      days_back: validDays,
+    });
+
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      cities = rpcData;
+    } else {
+      // Fallback: direct query aggregation from votes table
       const since = new Date(Date.now() - validDays * 86400000).toISOString();
 
-      const { data: votes } = await supabase
+      const { data: votes, error: votesError } = await supabase
         .from("votes")
         .select("region, country_code, device_id")
         .gte("created_at", since)
         .not("region", "is", null);
 
-      if (votes) {
+      console.log("City fallback query:", { votesCount: votes?.length, votesError });
+
+      if (votes && votes.length > 0) {
         const cityMap: Record<string, {
           country_code: string;
           votes: number;
