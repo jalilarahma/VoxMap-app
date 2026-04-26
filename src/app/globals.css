@@ -17,7 +17,27 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* CartoDB dark tiles are already dark — no filter needed */
+/* Deep black map canvas — force tiles ultra-dark */
+.dark-tiles {
+  filter: brightness(0.7) contrast(1.1) saturate(0.8);
+}
+
+/* Leaflet map container — pure black */
+.leaflet-container {
+  background: #050505 !important;
+}
+
+/* Zoom controls — glass style */
+.leaflet-control-zoom a {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(12px);
+}
+.leaflet-control-zoom a:hover {
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: #00cfff !important;
+}
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; }
@@ -29,13 +49,16 @@ body {
 
 /* Leaflet popup dark theme */
 .leaflet-popup-content-wrapper {
-  background: #0F172A !important;
-  color: white !important;
-  border: 1px solid #1E293B !important;
-  border-radius: 12px !important;
+  background: rgba(5, 5, 5, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
 }
 .leaflet-popup-tip {
-  background: #0F172A !important;
+  background: rgba(5, 5, 5, 0.85) !important;
 }
 
 /* Pin label tooltips — always visible on map */

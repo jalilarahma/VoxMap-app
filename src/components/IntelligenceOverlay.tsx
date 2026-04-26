@@ -36,12 +36,14 @@ function intensityToColor(intensity: number, alpha: number = 1): string {
 
 // Get gradient stops for canvas radial gradient
 function getGradientStops(intensity: number): { color: string; stop: number }[] {
-  const coreAlpha = 0.35 + intensity * 0.35;
-  const midAlpha = 0.12 + intensity * 0.15;
+  // Vivid glow on deep black — higher alphas for punch
+  const coreAlpha = 0.55 + intensity * 0.4;
+  const midAlpha = 0.2 + intensity * 0.25;
+  const outerAlpha = 0.04 + intensity * 0.06;
   return [
     { color: intensityToColor(intensity, coreAlpha), stop: 0 },
-    { color: intensityToColor(intensity * 0.8, midAlpha), stop: 0.4 },
-    { color: intensityToColor(intensity * 0.5, 0.03), stop: 0.8 },
+    { color: intensityToColor(intensity * 0.85, midAlpha), stop: 0.35 },
+    { color: intensityToColor(intensity * 0.6, outerAlpha), stop: 0.7 },
     { color: "rgba(0,0,0,0)", stop: 1 },
   ];
 }
@@ -80,7 +82,7 @@ export default function IntelligenceOverlay({ mapInstance }: IntelligenceOverlay
     const hexH = hexSize * Math.sqrt(3);
     const hexW = hexSize * 2;
 
-    ctx.strokeStyle = "rgba(0, 207, 255, 0.04)";
+    ctx.strokeStyle = "rgba(0, 207, 255, 0.015)";
     ctx.lineWidth = 0.5;
 
     for (let row = -1; row < h / hexH + 1; row++) {
@@ -156,13 +158,14 @@ export default function IntelligenceOverlay({ mapInstance }: IntelligenceOverlay
       ctx.fillStyle = gradient;
       ctx.fill();
 
-      // Inner bright core for high intensity
-      if (intensity > 0.6) {
-        const coreGrad = ctx.createRadialGradient(x, y, 0, x, y, radius * 0.2);
-        coreGrad.addColorStop(0, intensityToColor(intensity, 0.6 * pulse));
+      // Inner bright core — white-hot center for high intensity
+      if (intensity > 0.5) {
+        const coreGrad = ctx.createRadialGradient(x, y, 0, x, y, radius * 0.25);
+        coreGrad.addColorStop(0, `rgba(255,255,255,${0.3 * pulse * intensity})`);
+        coreGrad.addColorStop(0.3, intensityToColor(intensity, 0.8 * pulse));
         coreGrad.addColorStop(1, "rgba(0,0,0,0)");
         ctx.beginPath();
-        ctx.arc(x, y, radius * 0.3, 0, Math.PI * 2);
+        ctx.arc(x, y, radius * 0.35, 0, Math.PI * 2);
         ctx.fillStyle = coreGrad;
         ctx.fill();
       }
@@ -200,7 +203,7 @@ export default function IntelligenceOverlay({ mapInstance }: IntelligenceOverlay
 
       // Animated pulse along arc
       const pulsePos = (time * 0.3 * arc.strength + arc.from.lat * 10) % 1;
-      const alpha = 0.06 + arc.strength * 0.08;
+      const alpha = 0.08 + arc.strength * 0.14;
 
       // Draw arc line
       ctx.beginPath();
@@ -215,11 +218,12 @@ export default function IntelligenceOverlay({ mapInstance }: IntelligenceOverlay
       const packetX = (1 - t) * (1 - t) * fromPt.x + 2 * (1 - t) * t * cpx + t * t * toPt.x;
       const packetY = (1 - t) * (1 - t) * fromPt.y + 2 * (1 - t) * t * cpy + t * t * toPt.y;
 
-      const packetGrad = ctx.createRadialGradient(packetX, packetY, 0, packetX, packetY, 6);
-      packetGrad.addColorStop(0, intensityToColor(arc.strength, 0.5));
+      const packetGrad = ctx.createRadialGradient(packetX, packetY, 0, packetX, packetY, 8);
+      packetGrad.addColorStop(0, `rgba(255,255,255,0.6)`);
+      packetGrad.addColorStop(0.3, intensityToColor(arc.strength, 0.7));
       packetGrad.addColorStop(1, "rgba(0,0,0,0)");
       ctx.beginPath();
-      ctx.arc(packetX, packetY, 6, 0, Math.PI * 2);
+      ctx.arc(packetX, packetY, 8, 0, Math.PI * 2);
       ctx.fillStyle = packetGrad;
       ctx.fill();
     }

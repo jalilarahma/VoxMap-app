@@ -358,22 +358,23 @@ export default function WorldMap({ lang }: WorldMapProps) {
         maxBoundsViscosity: 1.0,
       });
 
-      // Ultra-dark CartoDB tiles — no labels for clean look
+      // Ultra-dark CartoDB tiles — very low opacity for deep black canvas
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
         subdomains: "abcd",
         noWrap: true,
         bounds: [[-90, -180], [90, 180]],
-        opacity: 0.6, // Darken base tiles to let heatmap glow through
+        opacity: 0.35,
+        className: "dark-tiles",
       }).addTo(map);
 
-      // Subtle label layer on top
+      // Faint label layer
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
         subdomains: "abcd",
         noWrap: true,
         bounds: [[-90, -180], [90, 180]],
-        opacity: 0.4,
+        opacity: 0.3,
         pane: "overlayPane",
       }).addTo(map);
 
@@ -879,9 +880,9 @@ export default function WorldMap({ lang }: WorldMapProps) {
   };
 
   return (
-    <div className="relative w-full h-screen">
-      {/* Map */}
-      <div ref={mapRef} className="w-full h-full z-0" />
+    <div className="relative w-full h-screen" style={{ background: "#050505" }}>
+      {/* Map — deep black canvas */}
+      <div ref={mapRef} className="w-full h-full z-0" style={{ background: "#050505" }} />
 
       {/* ── Intelligence Overlay (heatmap + hex grid + arcs) ── */}
       {mapInstanceRef.current && (
