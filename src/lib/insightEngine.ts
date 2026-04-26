@@ -54,7 +54,7 @@ const COUNTRY_NAMES: Record<string, string> = {
   ID: "Indonesia", MY: "Malaysia", SG: "Singapore", AU: "Australia", NZ: "New Zealand",
   CA: "Canada", MX: "Mexico", BR: "Brazil", AR: "Argentina", CO: "Colombia",
   CL: "Chile", PE: "Peru", NG: "Nigeria", KE: "Kenya", ZA: "South Africa",
-  GH: "Ghana", ET: "Ethiopia", TZ: "Tanzania", PS: "Palestine", IR: "Iran",
+  GH: "Ghana", ET: "Ethiopia", TZ: "Tanzania", IR: "Iran",
   AF: "Afghanistan",
 };
 
