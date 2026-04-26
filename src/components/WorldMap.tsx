@@ -538,7 +538,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
         }
 
         marker.bindTooltip(tooltipEl, {
-          permanent: true,
+          permanent: false,
           direction: "right",
           offset: [12, 0],
           className: "pin-label",
