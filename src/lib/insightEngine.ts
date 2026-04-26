@@ -54,13 +54,13 @@ const COUNTRY_NAMES: Record<string, string> = {
   ID: "Indonesia", MY: "Malaysia", SG: "Singapore", AU: "Australia", NZ: "New Zealand",
   CA: "Canada", MX: "Mexico", BR: "Brazil", AR: "Argentina", CO: "Colombia",
   CL: "Chile", PE: "Peru", NG: "Nigeria", KE: "Kenya", ZA: "South Africa",
-  GH: "Ghana", ET: "Ethiopia", TZ: "Tanzania", IL: "Israel", IR: "Iran",
+  GH: "Ghana", ET: "Ethiopia", TZ: "Tanzania", PS: "Palestine", IR: "Iran",
   AF: "Afghanistan",
 };
 
 // ── Regional groupings ──
 const REGION_GROUPS: Record<string, string[]> = {
-  "Middle East": ["QA", "SA", "AE", "KW", "BH", "OM", "IQ", "SY", "JO", "LB", "YE", "PS", "IL", "IR"],
+  "Middle East": ["QA", "SA", "AE", "KW", "BH", "OM", "IQ", "SY", "JO", "LB", "YE", "PS", "IR"],
   "North Africa": ["EG", "LY", "TN", "DZ", "MA", "SD"],
   "Europe": ["GB", "FR", "DE", "IT", "ES", "PT", "NL", "BE", "CH", "AT", "SE", "NO", "DK", "FI", "PL", "CZ", "RO", "GR"],
   "North America": ["US", "CA", "MX"],
