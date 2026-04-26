@@ -358,23 +358,23 @@ export default function WorldMap({ lang }: WorldMapProps) {
         maxBoundsViscosity: 1.0,
       });
 
-      // Ultra-dark CartoDB tiles — very low opacity for deep black canvas
+      // Ghost Map — charcoal tiles with border-revealing filter
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
         subdomains: "abcd",
         noWrap: true,
         bounds: [[-90, -180], [90, 180]],
-        opacity: 0.35,
+        opacity: 0.55,
         className: "dark-tiles",
       }).addTo(map);
 
-      // Faint label layer
+      // Label layer — slightly brighter for readability
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
         subdomains: "abcd",
         noWrap: true,
         bounds: [[-90, -180], [90, 180]],
-        opacity: 0.3,
+        opacity: 0.45,
         pane: "overlayPane",
       }).addTo(map);
 

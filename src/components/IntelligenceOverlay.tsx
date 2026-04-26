@@ -35,17 +35,29 @@ function hashKey(key: string): number {
   return Math.abs(h);
 }
 
-// ── Zoom-responsive radius calculation ──
+// ── Intelligent Zoom Scaling — smooth inversely-proportional radius ──
+// zoom 2  → tiny sharp stars (2-3px)   — clean "starfield" cluster
+// zoom 6  → moderate dots (6-8px)      — regional clusters emerge
+// zoom 10 → soft heat zones (15-20px)  — city-level detail with blur
+// zoom 14+ → expanded glows (20-25px)  — street-level exploration
+// Uses continuous lerp — no jarring step transitions between brackets.
 function getZoomParams(zoom: number) {
-  if (zoom <= 3) {
-    return { clusterGrid: 12, baseRadius: 4, maxRadius: 8, blur: 0.3, coreAlpha: 0.7, midAlpha: 0.25, outerAlpha: 0.02, arcWidth: 0.5 };
-  } else if (zoom <= 5) {
-    return { clusterGrid: 16, baseRadius: 6, maxRadius: 14, blur: 0.5, coreAlpha: 0.65, midAlpha: 0.22, outerAlpha: 0.04, arcWidth: 0.8 };
-  } else if (zoom <= 8) {
-    return { clusterGrid: 24, baseRadius: 10, maxRadius: 25, blur: 0.7, coreAlpha: 0.55, midAlpha: 0.2, outerAlpha: 0.05, arcWidth: 1.0 };
-  } else {
-    return { clusterGrid: 35, baseRadius: 16, maxRadius: 45, blur: 1.0, coreAlpha: 0.5, midAlpha: 0.18, outerAlpha: 0.06, arcWidth: 1.2 };
-  }
+  const z = Math.max(2, Math.min(18, zoom));
+  // Normalize to 0..1 over the useful zoom range (2–14)
+  const t = Math.min(1, (z - 2) / 12);
+  // Smooth easing (ease-in-out cubic)
+  const s = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  return {
+    clusterGrid:  Math.round(8 + 30 * s),          // 8 → 38
+    baseRadius:   2 + 18 * s,                       // 2px → 20px
+    maxRadius:    3 + 22 * s,                       // 3px → 25px
+    blur:         0.1 + 0.9 * s,                    // 0.1 → 1.0
+    coreAlpha:    0.8 - 0.3 * s,                    // 0.8 → 0.5 (brighter when small)
+    midAlpha:     0.3 - 0.12 * s,                   // 0.3 → 0.18
+    outerAlpha:   0.01 + 0.06 * s,                  // 0.01 → 0.07
+    arcWidth:     0.4 + 1.0 * s,                    // 0.4 → 1.4
+  };
 }
 
 // ── Coastline & border paths for geopolitical grid ──
@@ -208,10 +220,11 @@ export default function IntelligenceOverlay({ mapInstance }: IntelligenceOverlay
     }
   }, []);
 
-  // ── 2. Coastline glow — cyber-blue depth layer (drawn UNDER heatmap) ──
+  // ── 2. Neon Border Strokes — cyber-blue spatial definition (drawn UNDER heatmap) ──
+  // #004466 neon glow gives users a sense of "where" without a bright map
   const drawCoastlineGlow = useCallback((ctx: CanvasRenderingContext2D) => {
     const zoom = mapInstance?.getZoom() || 4;
-    if (zoom < 3) return; // Too far out
+    if (zoom < 2) return;
 
     const dpr = window.devicePixelRatio || 1;
     const cw = ctx.canvas.width / dpr;
@@ -228,41 +241,38 @@ export default function IntelligenceOverlay({ mapInstance }: IntelligenceOverlay
       const onScreen = pixels.some(p => p.x > -200 && p.x < cw + 200 && p.y > -200 && p.y < ch + 200);
       if (!onScreen) continue;
 
-      // Scale glow intensity with zoom
-      const zoomScale = Math.min(1, (zoom - 2) / 6); // Fades in from zoom 2→8
-      const baseAlpha = 0.04 * coast.glow * (0.3 + 0.7 * zoomScale);
+      // Glow scales with zoom — visible even at world view, stronger up close
+      const zoomScale = Math.min(1, (zoom - 1) / 8);
+      const glowStrength = coast.glow * (0.5 + 0.5 * zoomScale);
 
-      // ── Layer 1: Wide soft outer glow (3px, very low alpha) ──
-      ctx.beginPath();
-      ctx.moveTo(pixels[0].x, pixels[0].y);
-      for (let i = 1; i < pixels.length; i++) {
-        ctx.lineTo(pixels[i].x, pixels[i].y);
-      }
-      ctx.strokeStyle = `rgba(0, 51, 102, ${baseAlpha * 2.5})`; // #003366
-      ctx.lineWidth = 3;
-      ctx.shadowColor = "rgba(0, 51, 102, 0.15)";
-      ctx.shadowBlur = 8;
+      // Helper: trace the path
+      const tracePath = () => {
+        ctx.beginPath();
+        ctx.moveTo(pixels[0].x, pixels[0].y);
+        for (let i = 1; i < pixels.length; i++) {
+          ctx.lineTo(pixels[i].x, pixels[i].y);
+        }
+      };
+
+      // ── Layer 1: Wide neon bloom (4px, shadow blur) ──
+      tracePath();
+      ctx.strokeStyle = `rgba(0, 68, 102, ${0.12 * glowStrength})`; // #004466
+      ctx.lineWidth = 4;
+      ctx.shadowColor = `rgba(0, 68, 102, ${0.25 * glowStrength})`;
+      ctx.shadowBlur = 12;
       ctx.stroke();
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
 
-      // ── Layer 2: Medium glow (1.5px) ──
-      ctx.beginPath();
-      ctx.moveTo(pixels[0].x, pixels[0].y);
-      for (let i = 1; i < pixels.length; i++) {
-        ctx.lineTo(pixels[i].x, pixels[i].y);
-      }
-      ctx.strokeStyle = `rgba(0, 31, 63, ${baseAlpha * 3})`; // #001F3F
+      // ── Layer 2: Core neon line (1.5px, brighter) ──
+      tracePath();
+      ctx.strokeStyle = `rgba(0, 68, 102, ${0.22 * glowStrength})`; // #004466 solid
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // ── Layer 3: Crisp thin edge (0.5px, sharper) ──
-      ctx.beginPath();
-      ctx.moveTo(pixels[0].x, pixels[0].y);
-      for (let i = 1; i < pixels.length; i++) {
-        ctx.lineTo(pixels[i].x, pixels[i].y);
-      }
-      ctx.strokeStyle = `rgba(0, 120, 200, ${baseAlpha * 1.5})`;
+      // ── Layer 3: Crisp highlight edge (0.5px, brightest) ──
+      tracePath();
+      ctx.strokeStyle = `rgba(0, 140, 210, ${0.15 * glowStrength})`; // lighter cyan accent
       ctx.lineWidth = 0.5;
       ctx.stroke();
     }
