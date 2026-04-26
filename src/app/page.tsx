@@ -97,18 +97,61 @@ export default function Home() {
           <>
             <WorldMap lang={lang} />
 
-            {/* ── All tool buttons: single column below the language globe ── */}
-            <div className="fixed left-4 top-16 z-[1500] flex flex-col gap-2">
+            {/* ── Tool sidebar: glassmorphism panel with hover labels ── */}
+            <div className="fixed left-4 top-16 z-[1500] flex flex-col gap-1.5
+              bg-black/30 backdrop-blur-xl rounded-2xl p-1.5
+              border border-white/[0.06] shadow-xl shadow-black/30">
               <button onClick={() => setShowIntelHub(true)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50 hover:border-orange-400 transition-all text-sm" title="Intelligence Hub">📊</button>
+                className="w-10 h-10 flex items-center justify-center rounded-xl
+                  hover:bg-white/[0.08] transition-all text-sm group relative" title="Intelligence Hub">
+                📊
+                <span className="absolute left-12 px-2 py-1 rounded-lg bg-black/80 backdrop-blur-xl
+                  border border-white/[0.08] text-[10px] font-mono text-cyan-400 whitespace-nowrap
+                  opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  INTEL HUB
+                </span>
+              </button>
               <button onClick={() => setShowCommunity(true)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50 hover:border-orange-400 transition-all text-sm" title="Community">💬</button>
+                className="w-10 h-10 flex items-center justify-center rounded-xl
+                  hover:bg-white/[0.08] transition-all text-sm group relative" title="Community">
+                💬
+                <span className="absolute left-12 px-2 py-1 rounded-lg bg-black/80 backdrop-blur-xl
+                  border border-white/[0.08] text-[10px] font-mono text-cyan-400 whitespace-nowrap
+                  opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  COMMUNITY
+                </span>
+              </button>
               <button onClick={() => setShowCityChallenge(true)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50 hover:border-orange-400 transition-all text-sm" title="City Challenge">🏙️</button>
+                className="w-10 h-10 flex items-center justify-center rounded-xl
+                  hover:bg-white/[0.08] transition-all text-sm group relative" title="City Challenge">
+                🏙️
+                <span className="absolute left-12 px-2 py-1 rounded-lg bg-black/80 backdrop-blur-xl
+                  border border-white/[0.08] text-[10px] font-mono text-cyan-400 whitespace-nowrap
+                  opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  CITY CHALLENGE
+                </span>
+              </button>
               <button onClick={() => setShowTimeLapse(true)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50 hover:border-orange-400 transition-all text-sm" title="Time-Lapse">🎬</button>
+                className="w-10 h-10 flex items-center justify-center rounded-xl
+                  hover:bg-white/[0.08] transition-all text-sm group relative" title="Time-Lapse">
+                🎬
+                <span className="absolute left-12 px-2 py-1 rounded-lg bg-black/80 backdrop-blur-xl
+                  border border-white/[0.08] text-[10px] font-mono text-cyan-400 whitespace-nowrap
+                  opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  TIME-LAPSE
+                </span>
+              </button>
               <button onClick={() => setShowUsernameEdit(true)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900/90 backdrop-blur-sm border border-slate-700/50 hover:border-orange-400 transition-all text-sm" title={`@${getUsername() || "Anonymous"}`}>👤</button>
+                className="w-10 h-10 flex items-center justify-center rounded-xl
+                  hover:bg-white/[0.08] transition-all text-sm group relative" title={`@${getUsername() || "Anonymous"}`}>
+                👤
+                <span className="absolute left-12 px-2 py-1 rounded-lg bg-black/80 backdrop-blur-xl
+                  border border-white/[0.08] text-[10px] font-mono text-cyan-400 whitespace-nowrap
+                  opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  PROFILE
+                </span>
+              </button>
+              <div className="h-px bg-white/[0.06] mx-1" />
               <StealthToggle />
             </div>
           </>

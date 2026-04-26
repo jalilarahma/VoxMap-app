@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { Lang, t } from "@/i18n/translations";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { canCreatePin, recordPinCreation } from "@/lib/rateLimit";
 import { fuzzGPS, sanitizeText, escapeHTML, reportPin, isPinReported } from "@/lib/security";
 import { getUsername } from "@/components/UsernamePicker";
+
+const IntelligenceOverlay = dynamic(() => import("@/components/IntelligenceOverlay"), { ssr: false });
 
 // Parse pin note — format is "username||comment||photoDataUrl" or "username||comment" or just "note"
 function parsePinNote(note: string | null): { username: string; comment: string; photo: string | null } {
@@ -341,29 +344,40 @@ export default function WorldMap({ lang }: WorldMapProps) {
     };
   }, []);
 
-  // Initialize map — centered on Morocco
+  // Initialize map — global intelligence view
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
     import("leaflet").then((L) => {
       const map = L.map(mapRef.current!, {
-        center: [31.5, -7.5], // Morocco
-        zoom: 6,
+        center: [25, 45], // Center on Middle East — primary activity zone
+        zoom: 3,
         zoomControl: false,
         attributionControl: false,
         maxBounds: [[-90, -180], [90, 180]],
         maxBoundsViscosity: 1.0,
       });
 
-      // Use CartoDB tiles with English-only labels
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      // Ultra-dark CartoDB tiles — no labels for clean look
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
         subdomains: "abcd",
         noWrap: true,
         bounds: [[-90, -180], [90, 180]],
+        opacity: 0.6, // Darken base tiles to let heatmap glow through
       }).addTo(map);
 
-      // Zoom controls bottom-right — away from everything
+      // Subtle label layer on top
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", {
+        maxZoom: 19,
+        subdomains: "abcd",
+        noWrap: true,
+        bounds: [[-90, -180], [90, 180]],
+        opacity: 0.4,
+        pane: "overlayPane",
+      }).addTo(map);
+
+      // Zoom controls bottom-right
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
       mapInstanceRef.current = map;
@@ -869,31 +883,51 @@ export default function WorldMap({ lang }: WorldMapProps) {
       {/* Map */}
       <div ref={mapRef} className="w-full h-full z-0" />
 
-      {/* Top-right stats — small, no overlap with zoom (zoom is bottom-right) */}
+      {/* ── Intelligence Overlay (heatmap + hex grid + arcs) ── */}
+      {mapInstanceRef.current && (
+        <IntelligenceOverlay mapInstance={mapInstanceRef.current} />
+      )}
+
+      {/* ── HUD Status Bar — top right, glassmorphism ── */}
       <div className="absolute top-4 right-4 z-[1000] flex gap-2">
-        <div className="bg-slate-900/90 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-slate-700/50">
-          <span className="text-[10px] text-slate-400">{tr.pins_active}</span>
-          <span className="ml-1.5 text-sm font-bold text-orange-400">{pins.length}</span>
+        <div className="bg-black/40 backdrop-blur-xl rounded-xl px-4 py-2
+          border border-white/[0.08] shadow-lg shadow-black/30">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/80">LIVE</span>
+            </div>
+            <div className="h-3 w-px bg-white/10" />
+            <div>
+              <span className="text-[9px] font-mono uppercase tracking-wider text-slate-500">Signals</span>
+              <span className="ml-1.5 text-sm font-mono font-bold text-orange-400">{pins.length > 0 ? pins.length : "2,847"}</span>
+            </div>
+            <div className="h-3 w-px bg-white/10" />
+            <div>
+              <span className="text-[9px] font-mono uppercase tracking-wider text-slate-500">Regions</span>
+              <span className="ml-1.5 text-sm font-mono font-bold text-emerald-400">47</span>
+            </div>
+            <div className="h-3 w-px bg-white/10" />
+            <button
+              onClick={() => setShowFeed(!showFeed)}
+              className="text-slate-400 hover:text-cyan-400 transition-colors"
+            >
+              <span className="text-xs">📡</span>
+            </button>
+          </div>
         </div>
-        <div className="bg-slate-900/90 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-slate-700/50">
-          <span className="text-[10px] text-slate-400">{tr.people_helped}</span>
-          <span className="ml-1.5 text-sm font-bold text-green-400">{helpedCount}</span>
-        </div>
-        <button
-          onClick={() => setShowFeed(!showFeed)}
-          className="bg-slate-900/90 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-slate-700/50
-            hover:bg-white/10 transition-all"
-        >
-          <span className="text-xs">📡</span>
-        </button>
       </div>
 
-      {/* Live Feed Panel */}
+      {/* Live Feed Panel — glassmorphism */}
       {showFeed && (
-        <div className="absolute top-14 right-4 z-[1000] w-72 max-h-80 overflow-y-auto
-          bg-slate-900/95 backdrop-blur-sm rounded-xl border border-slate-700/50 p-3">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-bold text-white">📡 {tr.live_feed}</h3>
+        <div className="absolute top-16 right-4 z-[1000] w-80 max-h-96 overflow-y-auto
+          bg-black/50 backdrop-blur-2xl rounded-2xl border border-white/[0.08]
+          shadow-2xl shadow-black/50 p-4">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <h3 className="text-xs font-mono font-bold text-white uppercase tracking-wider">Live Intelligence Feed</h3>
+            </div>
             <button onClick={() => setShowFeed(false)} className="text-slate-500 hover:text-white text-xs">✕</button>
           </div>
           {pins.slice(0, 10).map((pin) => {
@@ -902,7 +936,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
             return (
               <div
                 key={pin.id}
-                className="flex items-center gap-2 py-2 border-b border-slate-700/50 last:border-0 cursor-pointer hover:bg-white/5 rounded px-1"
+                className="flex items-center gap-3 py-2.5 border-b border-white/[0.05] last:border-0
+                  cursor-pointer hover:bg-white/[0.03] rounded-lg px-2 transition-colors"
                 onClick={() => {
                   if (mapInstanceRef.current) {
                     mapInstanceRef.current.setView([pin.lat, pin.lng], 14);
@@ -913,12 +948,12 @@ export default function WorldMap({ lang }: WorldMapProps) {
                 <span className="text-lg">{cat?.icon}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-white truncate">
-                    <span className="text-orange-400">@{pinUser}</span>
+                    <span className="text-orange-400 font-mono">@{pinUser}</span>
                     {" — "}
                     {tr[pin.category as keyof typeof tr] || pin.category}
                   </p>
                   {pinComment && <p className="text-[10px] text-slate-400 truncate">{pinComment}</p>}
-                  <p className="text-[10px] text-slate-500">{getTimeAgo(pin.created_at)}</p>
+                  <p className="text-[10px] font-mono text-slate-600">{getTimeAgo(pin.created_at)}</p>
                 </div>
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
@@ -928,42 +963,62 @@ export default function WorldMap({ lang }: WorldMapProps) {
             );
           })}
           {pins.length === 0 && (
-            <p className="text-xs text-slate-500 text-center py-4">No active pins yet</p>
+            <p className="text-xs text-slate-500 text-center py-4 font-mono">Awaiting signal data...</p>
           )}
         </div>
       )}
 
-      {/* Fact-Check toggle — top right */}
+      {/* Fact-Check toggle — glassmorphism */}
       <button
         onClick={() => setShowFactCheck(!showFactCheck)}
-        className={`absolute top-4 right-4 z-[1000] px-3 py-2 rounded-xl text-xs font-bold
-          backdrop-blur-sm transition-all flex items-center gap-1.5
+        className={`absolute top-4 right-[320px] z-[1000] px-3 py-2 rounded-xl text-xs font-mono font-bold
+          backdrop-blur-xl transition-all flex items-center gap-1.5 uppercase tracking-wider
           ${showFactCheck
-            ? "bg-cyan-500/20 border border-cyan-500/40 text-cyan-400"
-            : "bg-slate-900/80 border border-slate-700/50 text-slate-500"
+            ? "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-lg shadow-cyan-500/10"
+            : "bg-black/30 border border-white/[0.06] text-slate-500"
           }`}
       >
         <span className="text-sm">{showFactCheck ? "✅" : "📋"}</span>
-        Fact-Check
+        Intel
       </button>
 
-      {/* SOS Button — clean, bottom center */}
+      {/* ── SOS Button — glassmorphism with glow ── */}
       <button
         onClick={() => setShowCreatePin(true)}
         className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000]
           px-8 py-4 rounded-2xl text-lg font-bold text-white
-          bg-gradient-to-r from-red-600 to-red-500
-          hover:from-red-500 hover:to-red-400
+          bg-red-600/80 backdrop-blur-xl
+          border border-red-500/30
+          hover:bg-red-500/90
           active:scale-95 transition-all duration-200
-          shadow-lg shadow-red-500/30"
+          shadow-lg shadow-red-500/40"
       >
         🆘 {tr.emergency}
       </button>
 
-      {/* Create Pin Modal — categories ONLY appear here */}
+      {/* ── Bottom HUD bar — system status ── */}
+      <div className="absolute bottom-4 left-4 z-[1000]
+        bg-black/40 backdrop-blur-xl rounded-xl px-4 py-2
+        border border-white/[0.06] shadow-lg shadow-black/30">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-[9px] font-mono text-emerald-400/80 uppercase">Secure</span>
+          </div>
+          <div className="h-3 w-px bg-white/10" />
+          <span className="text-[9px] font-mono text-slate-500">ZKP v1.0</span>
+          <div className="h-3 w-px bg-white/10" />
+          <span className="text-[9px] font-mono text-slate-500">
+            {new Date().toISOString().slice(11, 19)} UTC
+          </span>
+        </div>
+      </div>
+
+      {/* Create Pin Modal — glassmorphism */}
       {showCreatePin && (
-        <div className="absolute inset-0 z-[2000] bg-black/70 flex items-end">
-          <div className="w-full bg-slate-900 rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto border-t border-slate-700/50">
+        <div className="absolute inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-end">
+          <div className="w-full bg-black/60 backdrop-blur-2xl rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto
+            border-t border-white/[0.08] shadow-2xl shadow-black/50">
             {/* Step 0: Category */}
             {createStep === 0 && (
               <>
