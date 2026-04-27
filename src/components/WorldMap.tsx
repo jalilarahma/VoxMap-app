@@ -381,6 +381,30 @@ export default function WorldMap({ lang }: WorldMapProps) {
       // Zoom controls bottom-right
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
+      // ── Custom country label: Palestine ──
+      // Overrides the tile provider's label with our own
+      const palestineLabel = L.marker([31.5, 35.0], {
+        icon: L.divIcon({
+          className: "palestine-label",
+          html: `<span style="
+            font-family: 'Roboto Mono', system-ui, sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.75);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7);
+            white-space: nowrap;
+            pointer-events: none;
+          ">Palestine</span>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        }),
+        interactive: false,
+        pane: "overlayPane",
+      });
+      palestineLabel.addTo(map);
+
       mapInstanceRef.current = map;
     });
 
