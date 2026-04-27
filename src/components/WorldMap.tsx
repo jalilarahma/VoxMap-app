@@ -368,32 +368,32 @@ export default function WorldMap({ lang }: WorldMapProps) {
         className: "dark-tiles",
       }).addTo(map);
 
-      // Label layer — slightly brighter for readability
+      // Ghost Labels — muted dark gray, desaturated, never compete with heatmap
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
         subdomains: "abcd",
         noWrap: true,
         bounds: [[-90, -180], [90, 180]],
-        opacity: 0.45,
-        pane: "overlayPane",
+        opacity: 0.35,
+        pane: "tilePane",
+        className: "ghost-labels",
       }).addTo(map);
 
       // Zoom controls bottom-right
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
-      // ── Custom country label: Palestine ──
-      // Overrides the tile provider's label with our own
+      // ── Custom country label: Palestine (ghost style — matches muted labels) ──
       const palestineLabel = L.marker([31.5, 35.0], {
         icon: L.divIcon({
           className: "palestine-label",
           html: `<span style="
             font-family: 'Roboto Mono', system-ui, sans-serif;
-            font-size: 11px;
-            font-weight: 500;
-            color: rgba(255,255,255,0.75);
-            letter-spacing: 2px;
+            font-size: 10px;
+            font-weight: 400;
+            color: #444444;
+            letter-spacing: 3px;
             text-transform: uppercase;
-            text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7);
+            text-shadow: 0 0 6px rgba(0,0,0,0.8);
             white-space: nowrap;
             pointer-events: none;
           ">Palestine</span>`,
@@ -401,7 +401,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
           iconAnchor: [0, 0],
         }),
         interactive: false,
-        pane: "overlayPane",
+        pane: "tilePane",
       });
       palestineLabel.addTo(map);
 
@@ -904,14 +904,17 @@ export default function WorldMap({ lang }: WorldMapProps) {
   };
 
   return (
-    <div className="relative w-full h-screen" style={{ background: "#050505" }}>
-      {/* Map — deep black canvas */}
-      <div ref={mapRef} className="w-full h-full z-0" style={{ background: "#050505" }} />
+    <div className="relative w-full h-screen" style={{ background: "#0A0A0A" }}>
+      {/* Map — deep charcoal canvas */}
+      <div ref={mapRef} className="w-full h-full z-0" style={{ background: "#0A0A0A" }} />
 
       {/* ── Intelligence Overlay (heatmap + hex grid + arcs) ── */}
       {mapInstanceRef.current && (
         <IntelligenceOverlay mapInstance={mapInstanceRef.current} />
       )}
+
+      {/* ── Vignette — darkened edges, focuses eye on center ── */}
+      <div className="map-vignette" />
 
       {/* ── HUD Status Bar — top right, glassmorphism ── */}
       <div className="absolute top-4 right-4 z-[1000] flex gap-2">
@@ -1007,7 +1010,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
         Intel
       </button>
 
-      {/* ── SOS Button — glassmorphism with glow ── */}
+      {/* ── SOS Button — glassmorphism with subtle pulse ── */}
       <button
         onClick={() => setShowCreatePin(true)}
         className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000]
@@ -1016,7 +1019,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
           border border-red-500/30
           hover:bg-red-500/90
           active:scale-95 transition-all duration-200
-          shadow-lg shadow-red-500/40"
+          shadow-lg shadow-red-500/40
+          sos-pulse"
       >
         🆘 {tr.emergency}
       </button>

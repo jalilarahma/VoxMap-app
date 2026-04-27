@@ -22,9 +22,34 @@ body {
   filter: brightness(1.2) contrast(1.1) opacity(0.4);
 }
 
+/* Ghost Labels — muted dark gray, 30% smaller, never compete with data */
+.ghost-labels {
+  filter: brightness(0.35) contrast(0.8) saturate(0);
+  opacity: 0.5;
+  font-size: 70%;
+}
+
 /* Leaflet map container — deep charcoal (not pure black) */
 .leaflet-container {
   background: #0A0A0A !important;
+}
+
+/* Vignette — darkened edges, focuses eye on center data activity */
+.map-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+  z-index: 450;
+}
+
+/* SOS Button — subtle emergency pulse */
+@keyframes sos-pulse {
+  0%, 100% { opacity: 0.8; box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+  50% { opacity: 1.0; box-shadow: 0 0 35px rgba(239, 68, 68, 0.55); }
+}
+.sos-pulse {
+  animation: sos-pulse 3s ease-in-out infinite;
 }
 
 /* Zoom controls — glass style */
