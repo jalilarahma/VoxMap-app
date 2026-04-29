@@ -453,25 +453,12 @@ export default function SplashScreen({ lang, onEnter }: SplashScreenProps) {
               ))}
             </div>
 
-            {/* Bottom CTA */}
-            <div className={`text-center mt-14 ${aboutVisible ? "opacity-100" : "opacity-0"}`}
+            {/* Tagline */}
+            <p className={`text-center text-sm text-slate-600 mt-14 ${aboutVisible ? "opacity-100" : "opacity-0"}`}
               style={{ transitionDelay: "900ms", transition: "all 1s" }}
             >
-              <button
-                onClick={onEnter}
-                className="group relative px-10 py-3.5 rounded-2xl text-lg font-bold text-white
-                  bg-gradient-to-r from-orange-500 via-red-500 to-purple-500
-                  hover:from-orange-400 hover:via-red-400 hover:to-purple-400
-                  transition-all duration-500
-                  hover:scale-105 active:scale-95
-                  shadow-lg shadow-red-500/25 hover:shadow-[0_0_40px_8px_rgba(239,68,68,0.35)]"
-              >
-                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-purple-500
-                  blur-xl opacity-20 group-hover:opacity-50 transition-all duration-500" />
-                <span className="relative">{tr.enter}</span>
-              </button>
-              <p className="text-xs text-slate-600 mt-4">The map is alive. Be the signal.</p>
-            </div>
+              The map is alive. Be the signal.
+            </p>
           </div>
         </section>
       )}
