@@ -161,6 +161,18 @@ body {
   /* background set inline so each orb gets its own gradient */
 }
 
+/* Vote share popup — slightly tighter than the SOS popup */
+.vote-share-popup .leaflet-popup-content-wrapper {
+  padding: 4px 6px;
+}
+.vote-share-popup button:hover {
+  filter: brightness(1.15);
+  transform: scale(1.05);
+}
+.vote-share-popup button {
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
 /* Gradient text */
 .gradient-text {
   background: linear-gradient(135deg, #F59E0B, #EF4444, #8B5CF6);

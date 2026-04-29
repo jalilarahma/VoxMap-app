@@ -175,6 +175,47 @@ export default function WorldMap({ lang }: WorldMapProps) {
     } catch {}
   }, []);
 
+  // ── Global share handler bound to the window so popup HTML can call it ──
+  useEffect(() => {
+    (window as any).__shareMyVote__ = (platform: string) => {
+      // Pull the user's own vote (saved by DailyPoll on submit).
+      let myVote = "";
+      let questionText = "";
+      try {
+        const raw = localStorage.getItem("voxmap_my_vote");
+        if (raw) {
+          const data = JSON.parse(raw);
+          myVote = data.option_index === 0 ? "Agree" : "Disagree";
+          questionText = data.question_text || "";
+        }
+      } catch {}
+
+      const shareUrl = "https://vox-map-app.vercel.app";
+      const text = myVote
+        ? `I voted "${myVote}" on VoxMap!${questionText ? `\n\n"${questionText}"` : ""}\n\nWhat do YOU think?`
+        : `Check out VoxMap — the living voice of the people. What do YOU think?`;
+
+      const urls: Record<string, string> = {
+        whatsapp: `https://wa.me/?text=${encodeURIComponent(text + "\n" + shareUrl)}`,
+        twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(text)}`,
+        snapchat: `https://www.snapchat.com/scan?attachmentUrl=${encodeURIComponent(shareUrl)}`,
+      };
+
+      if (platform === "instagram") {
+        navigator.clipboard?.writeText(`${text}\n${shareUrl}`).then(() => {
+          alert("Copied! Paste it on Instagram.");
+        }).catch(() => {});
+        return;
+      }
+
+      const url = urls[platform];
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    };
+
+    return () => { delete (window as any).__shareMyVote__; };
+  }, []);
+
   // ── Mode-driven pane opacity — fades each layer with a 300ms transition.
   // Also disables pointer-events on the inactive pane so hidden markers don't
   // intercept clicks (e.g. an SOS pin's popup opening while in Sentiment mode),
@@ -689,46 +730,84 @@ export default function WorldMap({ lang }: WorldMapProps) {
           if (lat === null || lng === null || isNaN(lat) || isNaN(lng)) return;
           if (lat === 0 && lng === 0) return; // Skip null island
 
-          // Blue for agree (0), Amber for disagree (1) — sentiment-only palette
+          // Green = agree, Red = disagree — distinct from SOS triangles.
           const isAgree = vote.option_index === 0;
-          const color = isAgree ? "#3B82F6" : "#F59E0B";
+          const color = isAgree ? "#22C55E" : "#EF4444";
 
-          // ── Sentiment Orb — soft, atmospheric, no hard edges ──
-          // Three concentric rings of falling opacity create a fluid "cloud"
-          // feel instead of a discrete data point.
-          const ringSpecs = [
-            { radius: 28, fillOpacity: 0.05 }, // outer haze
-            { radius: 18, fillOpacity: 0.12 }, // mid bloom
-            { radius: 10, fillOpacity: 0.22 }, // inner glow
-          ];
-          ringSpecs.forEach((spec) => {
-            const ring = L.circleMarker([lat, lng], {
-              radius: spec.radius,
-              fillColor: color,
-              color: "transparent",
-              weight: 0,
-              fillOpacity: spec.fillOpacity,
-              pane: "voxmap-sentiment",
-              interactive: false,
-            }).addTo(mapInstanceRef.current!);
-            voteMarkersRef.current.push(ring);
-          });
-
-          // Tiny invisible hit-target so hover tooltips still work without
-          // showing a hard center dot.
-          const hit = L.circleMarker([lat, lng], {
-            radius: 14,
-            fillColor: color,
-            color: "transparent",
-            weight: 0,
-            fillOpacity: 0,
+          // ── Vote orb = speaker (megaphone) icon over a soft glow halo ──
+          // Reads clearly as a voice/vote, not as an SOS or a generic dot.
+          const speakerSvg = `
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="${color}" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 10v4a1 1 0 0 0 1 1h2.293l4.5 4.5A1 1 0 0 0 12.5 19V5a1 1 0 0 0-1.707-.707L6.293 9H4a1 1 0 0 0-1 1z"/>
+              <path d="M16.5 8.5a4 4 0 0 1 0 7" stroke="${color}" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+              <path d="M19 6a7 7 0 0 1 0 12" stroke="${color}" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.7"/>
+            </svg>`;
+          const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+              className: "vote-speaker",
+              html: `<div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+                <div style="position:absolute;inset:-4px;border-radius:50%;
+                  background:radial-gradient(circle, ${color}55 0%, ${color}00 70%);"></div>
+                <div style="position:relative;filter:drop-shadow(0 0 4px ${color}AA);">${speakerSvg}</div>
+              </div>`,
+              iconSize: [36, 36],
+              iconAnchor: [18, 18],
+            }),
             pane: "voxmap-sentiment",
           }).addTo(mapInstanceRef.current!);
-          hit.bindTooltip(
-            `${isAgree ? "Agree" : "Disagree"}${vote.country_code ? " · " + vote.country_code : ""}`,
+
+          marker.bindTooltip(
+            `${isAgree ? "✓ Agree" : "✗ Disagree"}${vote.country_code ? " · " + vote.country_code : ""}`,
             { direction: "top", className: "pin-label" }
           );
-          voteMarkersRef.current.push(hit);
+
+          // ── Share popup — tap any voice to share YOUR own vote ──
+          const sharePopupHtml = `
+            <div style="font-family:system-ui;min-width:220px;max-width:260px;">
+              <div style="text-align:center;margin-bottom:6px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;
+                  background:${color}22;border:1px solid ${color}55;border-radius:20px;
+                  font-size:11px;font-weight:700;color:${color};letter-spacing:0.05em;">
+                  ${isAgree ? "✓ AGREE" : "✗ DISAGREE"}
+                </span>
+              </div>
+              <p style="font-size:11px;color:#94a3b8;text-align:center;margin:0 0 12px;">
+                A voice from ${vote.country_code || "the world"}
+              </p>
+              <p style="font-size:9px;color:#64748b;text-align:center;letter-spacing:0.1em;
+                text-transform:uppercase;margin:0 0 8px;">Share your vote</p>
+              <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
+                <button onclick="window.__shareMyVote__('whatsapp')" title="WhatsApp"
+                  style="width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
+                    background:#25D366;display:flex;align-items:center;justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+                </button>
+                <button onclick="window.__shareMyVote__('twitter')" title="X (Twitter)"
+                  style="width:38px;height:38px;border-radius:50%;border:1px solid #334155;cursor:pointer;
+                    background:#000;display:flex;align-items:center;justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                </button>
+                <button onclick="window.__shareMyVote__('facebook')" title="Facebook"
+                  style="width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
+                    background:#1877F2;display:flex;align-items:center;justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                </button>
+                <button onclick="window.__shareMyVote__('instagram')" title="Instagram (copies)"
+                  style="width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
+                    background:linear-gradient(45deg,#F58529,#DD2A7B,#8134AF);
+                    display:flex;align-items:center;justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+                </button>
+                <button onclick="window.__shareMyVote__('snapchat')" title="Snapchat"
+                  style="width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
+                    background:#FFFC00;display:flex;align-items:center;justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="black"><path d="M12 1.5c-3.2 0-5.5 1.6-6.5 4.5-.4 1.1-.3 3.3-.2 4.8-.5.3-1.3.1-1.9-.3-.4-.2-.7-.2-.9 0-.5.3-.6.8-.2 1.2.7.7 1.8 1.3 2.9 1.7-.2.5-.7.9-1.5 1.2-1.3.5-2.2 1.1-2.2 1.8 0 .6.5 1 1.3 1.2.8.3 1.7.4 2.4.5.2.3.3.7.5 1.1.2.5.6.8 1.3.8.9 0 1.8-.7 3-1.4.7-.4 1.4-.6 1.9-.6s1.2.2 1.9.6c1.2.7 2.1 1.4 3 1.4.7 0 1.1-.3 1.3-.8.2-.4.3-.8.5-1.1.7-.1 1.6-.2 2.4-.5.8-.2 1.3-.6 1.3-1.2 0-.7-.9-1.3-2.2-1.8-.8-.3-1.3-.7-1.5-1.2 1.1-.4 2.2-1 2.9-1.7.4-.4.3-.9-.2-1.2-.2-.2-.5-.2-.9 0-.6.4-1.4.6-1.9.3.1-1.5.2-3.7-.2-4.8-1-2.9-3.3-4.5-6.5-4.5z"/></svg>
+                </button>
+              </div>
+            </div>`;
+          marker.bindPopup(sharePopupHtml, { maxWidth: 280, className: "vote-share-popup" });
+
+          voteMarkersRef.current.push(marker);
         });
       });
     }
