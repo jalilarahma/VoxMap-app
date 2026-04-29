@@ -125,6 +125,38 @@ body {
   animation: pulse-glow 3s ease-in-out infinite;
 }
 
+/* Pin pulse — critical SOS triangle ring */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.35); opacity: 0; }
+}
+
+/* Hide scrollbar — for category filter chip row */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Map legend chip */
+.map-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Roboto Mono', system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.75);
+}
+.map-legend-chip .swatch-tri {
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid #EF4444;
+  filter: drop-shadow(0 0 3px rgba(239,68,68,0.6));
+}
+.map-legend-chip .swatch-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+}
+
 /* Gradient text */
 .gradient-text {
   background: linear-gradient(135deg, #F59E0B, #EF4444, #8B5CF6);

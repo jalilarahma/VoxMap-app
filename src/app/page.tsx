@@ -141,6 +141,7 @@ export default function Home() {
               bg-black/30 backdrop-blur-xl rounded-2xl p-1.5
               border border-white/[0.06] shadow-xl shadow-black/30">
               <button onClick={() => setShowIntelHub(true)}
+                aria-label="Open Intelligence Hub"
                 className="w-10 h-10 flex items-center justify-center rounded-xl
                   hover:bg-white/[0.08] transition-all text-sm group relative" title="Intelligence Hub">
                 📊
@@ -151,6 +152,7 @@ export default function Home() {
                 </span>
               </button>
               <button onClick={() => setShowCommunity(true)}
+                aria-label="Open Community feed"
                 className="w-10 h-10 flex items-center justify-center rounded-xl
                   hover:bg-white/[0.08] transition-all text-sm group relative" title="Community">
                 💬
@@ -161,6 +163,7 @@ export default function Home() {
                 </span>
               </button>
               <button onClick={() => setShowCityChallenge(true)}
+                aria-label="Open City Challenge"
                 className="w-10 h-10 flex items-center justify-center rounded-xl
                   hover:bg-white/[0.08] transition-all text-sm group relative" title="City Challenge">
                 🏙️
@@ -171,6 +174,7 @@ export default function Home() {
                 </span>
               </button>
               <button onClick={() => setShowTimeLapse(true)}
+                aria-label="Open Time-Lapse view"
                 className="w-10 h-10 flex items-center justify-center rounded-xl
                   hover:bg-white/[0.08] transition-all text-sm group relative" title="Time-Lapse">
                 🎬
@@ -181,6 +185,7 @@ export default function Home() {
                 </span>
               </button>
               <button onClick={() => setShowUsernameEdit(true)}
+                aria-label={`Edit username (currently @${getUsername() || "Anonymous"})`}
                 className="w-10 h-10 flex items-center justify-center rounded-xl
                   hover:bg-white/[0.08] transition-all text-sm group relative" title={`@${getUsername() || "Anonymous"}`}>
                 👤
