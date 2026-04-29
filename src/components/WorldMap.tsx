@@ -958,13 +958,16 @@ export default function WorldMap({ lang }: WorldMapProps) {
       {/* Map — deep charcoal canvas */}
       <div ref={mapRef} className="w-full h-full z-0" style={{ background: "#0A0A0A" }} />
 
-      {/* ── Intelligence Overlay (heatmap + hex grid + arcs) — bound to SOS world ── */}
+      {/* ── Intelligence Overlay (synthetic heatmap + arcs + hex grid) ──
+          Lives in the Sentiment world: it visualizes synthetic global vote
+          density, so it belongs with sentiment data — NOT mixed with the
+          SOS pins. SOS mode now stays clean: only real physical pins. */}
       {mapInstanceRef.current && (
         <div
-          aria-hidden={viewMode !== "sos"}
+          aria-hidden={viewMode !== "sentiment"}
           className="absolute inset-0 pointer-events-none"
           style={{
-            opacity: viewMode === "sos" ? 1 : 0,
+            opacity: viewMode === "sentiment" ? 1 : 0,
             transition: "opacity 300ms ease",
           }}
         >
@@ -1057,59 +1060,63 @@ export default function WorldMap({ lang }: WorldMapProps) {
         </div>
       )}
 
-      {/* ── Mode segmented control — choose one "world": SOS or Sentiment ── */}
-      <div
-        role="radiogroup"
-        aria-label="Map view mode"
-        className="absolute top-4 right-[320px] z-[1000] flex items-center
-          bg-black/40 backdrop-blur-xl rounded-xl p-1
-          border border-white/[0.08] shadow-lg shadow-black/30"
-      >
+      {/* ── Top-right control cluster — Intel toggle + SOS/Sentiment mode ──
+          Single flex container so the items always lay out cleanly without
+          overlapping the LIVE/SIGNALS HUD. */}
+      <div className="absolute top-4 right-[340px] z-[1000] flex items-center gap-2">
+        {/* Intel (fact-check) — independent overlay, valid in either world */}
         <button
-          role="radio"
-          aria-checked={viewMode === "sos"}
-          onClick={() => setViewMode("sos")}
-          className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase
-            tracking-wider transition-all flex items-center gap-1.5
-            ${viewMode === "sos"
-              ? "bg-red-500/15 text-red-300 shadow-inner shadow-red-500/10"
-              : "text-slate-500 hover:text-white"
+          onClick={() => setShowFactCheck(!showFactCheck)}
+          aria-label={showFactCheck ? "Hide fact-check overlay" : "Show fact-check overlay"}
+          aria-pressed={showFactCheck}
+          className={`px-3 py-2 rounded-xl text-xs font-mono font-bold
+            backdrop-blur-xl transition-all flex items-center gap-1.5 uppercase tracking-wider
+            ${showFactCheck
+              ? "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-lg shadow-cyan-500/10"
+              : "bg-black/30 border border-white/[0.06] text-slate-500"
             }`}
         >
-          <span className="text-sm">🆘</span>
-          SOS
+          <span className="text-sm">{showFactCheck ? "✅" : "📋"}</span>
+          Intel
         </button>
-        <button
-          role="radio"
-          aria-checked={viewMode === "sentiment"}
-          onClick={() => setViewMode("sentiment")}
-          className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase
-            tracking-wider transition-all flex items-center gap-1.5
-            ${viewMode === "sentiment"
-              ? "bg-blue-500/15 text-blue-300 shadow-inner shadow-blue-500/10"
-              : "text-slate-500 hover:text-white"
-            }`}
-        >
-          <span className="text-sm">🌐</span>
-          Sentiment
-        </button>
-      </div>
 
-      {/* Intel overlay — independent of mode (works as context in either world) */}
-      <button
-        onClick={() => setShowFactCheck(!showFactCheck)}
-        aria-label={showFactCheck ? "Hide fact-check overlay" : "Show fact-check overlay"}
-        aria-pressed={showFactCheck}
-        className={`absolute top-4 right-[488px] z-[1000] px-3 py-2 rounded-xl text-xs font-mono font-bold
-          backdrop-blur-xl transition-all flex items-center gap-1.5 uppercase tracking-wider
-          ${showFactCheck
-            ? "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-lg shadow-cyan-500/10"
-            : "bg-black/30 border border-white/[0.06] text-slate-500"
-          }`}
-      >
-        <span className="text-sm">{showFactCheck ? "✅" : "📋"}</span>
-        Intel
-      </button>
+        {/* Segmented mode control: SOS world ⟷ Sentiment world */}
+        <div
+          role="radiogroup"
+          aria-label="Map view mode"
+          className="flex items-center bg-black/40 backdrop-blur-xl rounded-xl p-1
+            border border-white/[0.08] shadow-lg shadow-black/30"
+        >
+          <button
+            role="radio"
+            aria-checked={viewMode === "sos"}
+            onClick={() => setViewMode("sos")}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase
+              tracking-wider transition-all flex items-center gap-1.5
+              ${viewMode === "sos"
+                ? "bg-red-500/15 text-red-300 shadow-inner shadow-red-500/10"
+                : "text-slate-500 hover:text-white"
+              }`}
+          >
+            <span className="text-sm">🆘</span>
+            SOS
+          </button>
+          <button
+            role="radio"
+            aria-checked={viewMode === "sentiment"}
+            onClick={() => setViewMode("sentiment")}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase
+              tracking-wider transition-all flex items-center gap-1.5
+              ${viewMode === "sentiment"
+                ? "bg-blue-500/15 text-blue-300 shadow-inner shadow-blue-500/10"
+                : "text-slate-500 hover:text-white"
+              }`}
+          >
+            <span className="text-sm">🌐</span>
+            Sentiment
+          </button>
+        </div>
+      </div>
 
       {/* ── Category Filter chip row — only meaningful in SOS mode ── */}
       <div
