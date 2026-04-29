@@ -9,7 +9,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-c</string>
-    <string>cd "/Users/jalila/Documents/Claude/Projects/VoxMap/voxmap-app" &amp;&amp; /usr/bin/git fetch -q origin main 2&gt;/dev/null &amp;&amp; if [ "$(/usr/bin/git rev-list --count origin/main..HEAD 2&gt;/dev/null)" -gt 0 ]; then /usr/bin/git push origin main; fi</string>
+    <string>echo "[$(date '+%Y-%m-%d %H:%M:%S')] tick"; cd "/Users/jalila/Documents/Claude/Projects/VoxMap/voxmap-app" || { echo "  ! cd failed"; exit 1; }; /usr/bin/git fetch origin main 2&gt;&amp;1 | sed 's/^/  fetch: /'; ahead=$(/usr/bin/git rev-list --count origin/main..HEAD 2&gt;/dev/null); if [ "${ahead:-0}" -gt 0 ]; then echo "  pushing $ahead commit(s)"; /usr/bin/git push origin main 2&gt;&amp;1 | sed 's/^/  push: /'; else echo "  up to date"; fi</string>
   </array>
 
   <!-- Run every 60 seconds while logged in. -->
