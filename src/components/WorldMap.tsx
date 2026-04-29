@@ -23,20 +23,25 @@ function parsePinNote(note: string | null): { username: string; comment: string;
   return { username: "Anonymous", comment: note, photo: null };
 }
 
-// SOS Categories — original clean colors
+// SOS Categories — urgency is derived from the category color so the user
+// doesn't have to pick it manually:
+//   red shades  → critical
+//   orange      → high
+//   blue/purple → medium
+//   green       → low
 const SOS_CATEGORIES = [
-  { id: "danger", icon: "⚠️", color: "#EF4444" },
-  { id: "robbery", icon: "💰", color: "#F59E0B" },
-  { id: "assault", icon: "🤛", color: "#DC2626" },
-  { id: "medical", icon: "🏥", color: "#10B981" },
-  { id: "fire", icon: "🔥", color: "#F97316" },
-  { id: "trapped", icon: "🚧", color: "#8B5CF6" },
-  { id: "flood", icon: "🌊", color: "#3B82F6" },
-  { id: "shooting", icon: "🔫", color: "#991B1B" },
-  { id: "missing", icon: "👤", color: "#6366F1" },
-  { id: "safe", icon: "✅", color: "#22C55E" },
-  { id: "help", icon: "🆘", color: "#E11D48" },
-  { id: "info", icon: "ℹ️", color: "#0EA5E9" },
+  { id: "danger",   icon: "⚠️", color: "#EF4444", urgency: "critical" },
+  { id: "robbery",  icon: "💰", color: "#F59E0B", urgency: "high" },
+  { id: "assault",  icon: "🤛", color: "#DC2626", urgency: "critical" },
+  { id: "medical",  icon: "🏥", color: "#10B981", urgency: "low" },
+  { id: "fire",     icon: "🔥", color: "#F97316", urgency: "high" },
+  { id: "trapped",  icon: "🚧", color: "#8B5CF6", urgency: "medium" },
+  { id: "flood",    icon: "🌊", color: "#3B82F6", urgency: "medium" },
+  { id: "shooting", icon: "🔫", color: "#991B1B", urgency: "critical" },
+  { id: "missing",  icon: "👤", color: "#6366F1", urgency: "medium" },
+  { id: "safe",     icon: "✅", color: "#22C55E", urgency: "low" },
+  { id: "help",     icon: "🆘", color: "#E11D48", urgency: "critical" },
+  { id: "info",     icon: "ℹ️", color: "#0EA5E9", urgency: "medium" },
 ];
 
 const URGENCY_LEVELS = [
@@ -1249,12 +1254,13 @@ export default function WorldMap({ lang }: WorldMapProps) {
         </div>
       </div>
 
-      {/* Create Pin Modal — glassmorphism */}
+      {/* Create Pin Modal — glassmorphism. 2-step flow: Category → Note+Photo. */}
       {showCreatePin && (
         <div className="absolute inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-end">
-          <div className="w-full bg-black/60 backdrop-blur-2xl rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto
+          <div className="w-full bg-black/60 backdrop-blur-2xl rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto
             border-t border-white/[0.08] shadow-2xl shadow-black/50">
-            {/* Step 0: Category */}
+            {/* Step 0: Category — tapping a category auto-assigns urgency
+                and jumps straight to the note step. */}
             {createStep === 0 && (
               <>
                 <h3 className="text-xl font-bold mb-4">{tr.select_category}</h3>
@@ -1264,6 +1270,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
                       key={cat.id}
                       onClick={() => {
                         setSelectedCategory(cat.id);
+                        setSelectedUrgency(cat.urgency);
                         setCreateStep(1);
                       }}
                       className="flex flex-col items-center gap-2 p-4 rounded-xl border
@@ -1280,91 +1287,99 @@ export default function WorldMap({ lang }: WorldMapProps) {
               </>
             )}
 
-            {/* Step 1: Urgency */}
-            {createStep === 1 && (
-              <>
-                <h3 className="text-xl font-bold mb-4">{tr.select_urgency}</h3>
-                <div className="space-y-3">
-                  {URGENCY_LEVELS.map((urg) => (
-                    <button
-                      key={urg.id}
-                      onClick={() => {
-                        setSelectedUrgency(urg.id);
-                        setCreateStep(2);
-                      }}
-                      className="w-full py-4 px-6 rounded-xl text-left font-semibold
-                        border border-slate-700/50 bg-slate-800/50
-                        hover:bg-white/5 transition-all"
-                      style={{ borderLeftColor: urg.color, borderLeftWidth: 4 }}
+            {/* Step 1: Note + Photo + Submit */}
+            {createStep === 1 && (() => {
+              const cat = SOS_CATEGORIES.find((c) => c.id === selectedCategory);
+              const catColor = cat?.color || "#F59E0B";
+              const catIcon = cat?.icon || "📍";
+              const catLabel = cat ? (tr[cat.id as keyof typeof tr] || cat.id) : "";
+              const urg = URGENCY_LEVELS.find((u) => u.id === selectedUrgency);
+              return (
+                <>
+                  {/* Category context header */}
+                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/[0.06]">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
+                      style={{ background: `${catColor}22`, border: `1px solid ${catColor}55` }}
                     >
-                      <span style={{ color: urg.color }}>
+                      {catIcon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Reporting</div>
+                      <div className="font-bold text-white text-base truncate" style={{ color: catColor }}>
+                        {catLabel}
+                      </div>
+                    </div>
+                    {urg && (
+                      <span
+                        className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-full shrink-0"
+                        style={{ background: `${urg.color}22`, color: urg.color, border: `1px solid ${urg.color}55` }}
+                      >
                         {tr[urg.id as keyof typeof tr] || urg.id}
                       </span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+                    )}
+                  </div>
 
-            {/* Step 2: Comment + Photo + Submit */}
-            {createStep === 2 && (
-              <>
-                <h3 className="text-xl font-bold mb-2">{tr.add_note}</h3>
-                <p className="text-sm text-slate-400 mb-4">Add a comment and/or photo — visible on the map for everyone.</p>
+                  <h3 className="text-xl font-bold mb-1">{tr.add_note}</h3>
+                  <p className="text-sm text-slate-400 mb-4">Add a comment and/or photo — visible on the map for everyone.</p>
 
-                <textarea
-                  value={pinNote}
-                  onChange={(e) => setPinNote(e.target.value)}
-                  className="w-full h-24 bg-slate-800 rounded-xl p-4 text-white
-                    border border-slate-700/50 focus:border-orange-500
-                    focus:outline-none resize-none"
-                  placeholder="What's happening? Describe the situation..."
-                  maxLength={280}
-                />
-                <p className="text-xs text-slate-600 mt-1 text-right">{pinNote.length}/280</p>
+                  {/* Bigger textarea, easier to type into during an emergency */}
+                  <textarea
+                    value={pinNote}
+                    onChange={(e) => setPinNote(e.target.value)}
+                    autoFocus
+                    className="w-full h-40 bg-slate-800 rounded-xl p-4 text-white text-base leading-relaxed
+                      border border-slate-700/50 focus:border-orange-500
+                      focus:outline-none resize-none"
+                    placeholder="What's happening? Describe the situation..."
+                    maxLength={280}
+                  />
+                  <p className="text-xs text-slate-600 mt-1 text-right">{pinNote.length}/280</p>
 
-                {/* Photo upload */}
-                <div className="mt-3">
-                  {pinPhoto ? (
-                    <div className="relative">
-                      <img src={pinPhoto} alt="Pin photo" className="w-full h-40 object-cover rounded-xl border border-slate-700/50" />
-                      <button
-                        onClick={() => setPinPhoto(null)}
-                        className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center
-                          bg-black/70 rounded-full text-white text-sm hover:bg-red-500 transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex items-center justify-center gap-2 py-3 rounded-xl
-                      border-2 border-dashed border-slate-700 hover:border-orange-500
-                      text-slate-400 hover:text-orange-400 cursor-pointer transition-all">
-                      <span className="text-lg">📷</span>
-                      <span className="text-sm font-medium">Add Photo</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handlePhotoUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
+                  {/* Prominent photo upload */}
+                  <div className="mt-4">
+                    {pinPhoto ? (
+                      <div className="relative">
+                        <img src={pinPhoto} alt="Pin photo" className="w-full h-48 object-cover rounded-xl border border-slate-700/50" />
+                        <button
+                          onClick={() => setPinPhoto(null)}
+                          className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center
+                            bg-black/70 rounded-full text-white text-sm hover:bg-red-500 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-3 py-5 rounded-xl
+                        border-2 border-dashed border-slate-600 hover:border-orange-500
+                        text-slate-300 hover:text-orange-400 cursor-pointer transition-all
+                        bg-slate-800/40 hover:bg-slate-800/70">
+                        <span className="text-2xl">📷</span>
+                        <span className="text-base font-semibold">Add Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
 
-                <button
-                  onClick={handleSubmitPin}
-                  disabled={isSubmitting}
-                  className={`w-full mt-4 py-4 rounded-xl text-lg font-bold text-white
-                    bg-gradient-to-r from-red-600 to-orange-500
-                    active:scale-95 transition-all
-                    ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:from-red-500 hover:to-orange-400"}`}
-                >
-                  {isSubmitting ? "..." : tr.confirm_pin}
-                </button>
-              </>
-            )}
+                  <button
+                    onClick={handleSubmitPin}
+                    disabled={isSubmitting}
+                    className={`w-full mt-5 py-4 rounded-xl text-lg font-bold text-white
+                      bg-gradient-to-r from-red-600 to-orange-500
+                      active:scale-95 transition-all
+                      ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:from-red-500 hover:to-orange-400"}`}
+                  >
+                    {isSubmitting ? "..." : tr.confirm_pin}
+                  </button>
+                </>
+              );
+            })()}
 
             {/* Navigation */}
             <div className="flex gap-3 mt-4">
