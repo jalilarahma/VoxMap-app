@@ -100,6 +100,14 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
     setStreak(getCurrentStreak());
   }, []);
 
+  // Auto-skip to map if already voted today (returning user)
+  useEffect(() => {
+    if (alreadyVoted && !voted) {
+      const timer = setTimeout(() => onComplete(), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [alreadyVoted, voted, onComplete]);
+
   useEffect(() => {
     async function fetchQuestion() {
       const dayOfYear = Math.floor(
@@ -324,15 +332,6 @@ export default function DailyPoll({ lang, onComplete }: DailyPollProps) {
       </div>
     );
   }
-
-  // ── Auto-skip to map if already voted today (returning user) ──
-  useEffect(() => {
-    if (alreadyVoted && !voted) {
-      // Small delay so user sees "already voted" briefly, then proceed
-      const timer = setTimeout(() => onComplete(), 800);
-      return () => clearTimeout(timer);
-    }
-  }, [alreadyVoted, voted, onComplete]);
 
   // ── Results screen (after voting) ──
   if (voted || alreadyVoted) {
