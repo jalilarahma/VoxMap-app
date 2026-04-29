@@ -462,13 +462,28 @@ export default function WorldMap({ lang }: WorldMapProps) {
           );
         }
 
-        const marker = L.circleMarker([pin.lat, pin.lng], {
-          radius: pin.urgency === "critical" ? 12 : pin.urgency === "high" ? 10 : 8,
-          fillColor: cat.color,
-          color: trustTotal > 0 ? trustColor : "#fff",
-          weight: trustTotal > 0 ? 3 : 2,
-          opacity: 0.9,
-          fillOpacity: 0.8,
+        // SOS pins use triangular divIcon markers — visually distinct from vote dots
+        const pinSize = pin.urgency === "critical" ? 20 : pin.urgency === "high" ? 17 : 14;
+        const borderCol = trustTotal > 0 ? trustColor : "#fff";
+        const marker = L.marker([pin.lat, pin.lng], {
+          icon: L.divIcon({
+            className: "",
+            html: `<div style="position:relative;width:${pinSize * 2}px;height:${pinSize * 2}px;display:flex;align-items:center;justify-content:center;">
+              <div style="width:0;height:0;
+                border-left:${pinSize * 0.7}px solid transparent;
+                border-right:${pinSize * 0.7}px solid transparent;
+                border-bottom:${pinSize * 1.2}px solid ${cat.color};
+                filter:drop-shadow(0 0 6px ${cat.color}80);
+                position:relative;">
+              </div>
+              <div style="position:absolute;top:${pinSize * 0.55}px;width:${pinSize * 0.5}px;height:${pinSize * 0.5}px;
+                background:${borderCol};border-radius:50%;opacity:0.9;">
+              </div>
+              ${pin.urgency === "critical" ? `<div style="position:absolute;inset:-4px;border:2px solid ${cat.color};border-radius:50%;opacity:0.5;animation:pulse 1.5s infinite;"></div>` : ""}
+            </div>`,
+            iconSize: [pinSize * 2, pinSize * 2],
+            iconAnchor: [pinSize, pinSize],
+          }),
         }).addTo(mapInstanceRef.current);
 
         const timeAgo = getTimeAgo(pin.created_at);
@@ -644,31 +659,31 @@ export default function WorldMap({ lang }: WorldMapProps) {
           if (lat === null || lng === null || isNaN(lat) || isNaN(lng)) return;
           if (lat === 0 && lng === 0) return; // Skip null island
 
-          // Green for agree (0), Red for disagree (1)
+          // Blue for agree (0), Amber for disagree (1) — distinct from SOS pins
           const isAgree = vote.option_index === 0;
-          const color = isAgree ? "#22C55E" : "#EF4444";
+          const color = isAgree ? "#3B82F6" : "#F59E0B";
 
-          // Outer glow circle — big, soft
+          // Soft glow — subtle ambient
           const glow = L.circleMarker([lat, lng], {
-            radius: 30,
+            radius: 14,
             fillColor: color,
             color: "transparent",
             weight: 0,
-            fillOpacity: 0.15,
+            fillOpacity: 0.12,
           }).addTo(mapInstanceRef.current!);
           voteMarkersRef.current.push(glow);
 
-          // Inner circle — solid, visible
+          // Small data dot — compact, not confused with SOS
           const circle = L.circleMarker([lat, lng], {
-            radius: 10,
+            radius: 5,
             fillColor: color,
             color: color,
             weight: 1,
-            fillOpacity: 0.5,
+            fillOpacity: 0.7,
           }).addTo(mapInstanceRef.current!);
 
           circle.bindTooltip(
-            `${isAgree ? "✅ Agree" : "❌ Disagree"}${vote.country_code ? " · " + vote.country_code : ""}`,
+            `${isAgree ? "🔵 Agree" : "🟠 Disagree"}${vote.country_code ? " · " + vote.country_code : ""}`,
             { direction: "top", className: "pin-label" }
           );
 
