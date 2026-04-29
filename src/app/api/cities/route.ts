@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { getServerSupabase } from "@/lib/supabaseServer";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,12 +14,13 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   try {
+    const supabase = getServerSupabase();
     const { searchParams } = new URL(req.url);
     const days = parseInt(searchParams.get("days") || "7");
     const validDays = Math.min(Math.max(days, 1), 30);
     const debug = searchParams.get("debug") === "true";
 
-    // Debug mode: show raw vote data with region info
+    // Debug mode
     if (debug) {
       const { data: allVotes, error: dbErr } = await supabase
         .from("votes")
@@ -32,18 +28,20 @@ export async function GET(req: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(20);
 
+      if (dbErr) {
+        return NextResponse.json({ error: "Debug query failed", details: dbErr.message }, { status: 500, headers: corsHeaders });
+      }
+
       return NextResponse.json({
         debug: true,
         total_votes: allVotes?.length || 0,
         votes_with_region: allVotes?.filter((v: { region: string | null }) => v.region)?.length || 0,
         recent_votes: allVotes,
-        db_error: dbErr,
       }, { headers: corsHeaders });
     }
 
-    // Try RPC function first, then fallback to direct query
+    // Try RPC function first
     let cities = null;
-
     const { data: rpcData, error: rpcError } = await supabase.rpc("get_city_leaderboard", {
       days_back: validDays,
     });
@@ -51,7 +49,11 @@ export async function GET(req: NextRequest) {
     if (!rpcError && rpcData && rpcData.length > 0) {
       cities = rpcData;
     } else {
-      // Fallback: direct query aggregation from votes table
+      if (rpcError) {
+        console.warn("[cities] RPC failed, using fallback:", rpcError.message);
+      }
+
+      // Fallback: direct query aggregation
       const since = new Date(Date.now() - validDays * 86400000).toISOString();
 
       const { data: votes, error: votesError } = await supabase
@@ -60,7 +62,12 @@ export async function GET(req: NextRequest) {
         .gte("created_at", since)
         .not("region", "is", null);
 
-      console.log("City fallback query:", { votesCount: votes?.length, votesError });
+      if (votesError) {
+        return NextResponse.json(
+          { error: "Failed to query votes", details: votesError.message },
+          { status: 500, headers: corsHeaders }
+        );
+      }
 
       if (votes && votes.length > 0) {
         const cityMap: Record<string, {
@@ -93,7 +100,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Get the Active City (top of leaderboard)
     const activeCity = cities && cities.length > 0 ? cities[0] : null;
 
     return NextResponse.json({
@@ -104,7 +110,7 @@ export async function GET(req: NextRequest) {
     }, { headers: corsHeaders });
 
   } catch (err) {
-    console.error("City leaderboard error:", err);
+    console.error("[cities] Unexpected error:", err);
     return NextResponse.json(
       { error: "Failed to load city leaderboard" },
       { status: 500, headers: corsHeaders }

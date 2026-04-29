@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
-const ADMIN_PASSWORD = "voxmap2026";
+// Password validated server-side via /api/admin
 
 interface Question {
   id: string;
@@ -96,12 +96,22 @@ export default function AdminPage() {
 
   const [loading, setLoading] = useState(false);
 
-  function handleLogin() {
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true);
-      setError("");
-    } else {
-      setError("Wrong password");
+  async function handleLogin() {
+    setError("");
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (data.authenticated) {
+        setAuthenticated(true);
+      } else {
+        setError(data.error || "Wrong password");
+      }
+    } catch {
+      setError("Connection error");
     }
   }
 

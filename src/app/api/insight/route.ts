@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServerSupabase } from "@/lib/supabaseServer";
 import { analyzeVotes } from "@/lib/insightEngine";
 import type { VoteData } from "@/lib/insightEngine";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,30 +16,48 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
+    const supabase = getServerSupabase();
+
     // Get today's question
     const dayOfYear = Math.floor(
       (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
     );
     const questionDay = ((dayOfYear - 1) % 30) + 1;
 
-    const { data: question } = await supabase
+    const { data: question, error: questionError } = await supabase
       .from("questions")
       .select("id, text_en")
       .eq("day_of_year", questionDay)
       .single();
 
+    if (questionError) {
+      console.error("[insight] Question query failed:", questionError.message);
+      return NextResponse.json(
+        { error: "Failed to load today's question", details: questionError.message },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
     if (!question) {
       return NextResponse.json(
-        { error: "No question found" },
+        { error: "No question found for today" },
         { status: 404, headers: corsHeaders }
       );
     }
 
     // Fetch all votes for this question with country data
-    const { data: votes } = await supabase
+    const { data: votes, error: votesError } = await supabase
       .from("votes")
       .select("option_index, country_code, region")
       .eq("question_id", question.id);
+
+    if (votesError) {
+      console.error("[insight] Votes query failed:", votesError.message);
+      return NextResponse.json(
+        { error: "Failed to load votes", details: votesError.message },
+        { status: 500, headers: corsHeaders }
+      );
+    }
 
     if (!votes || votes.length === 0) {
       return NextResponse.json({
@@ -78,7 +91,7 @@ export async function GET() {
     }, { headers: corsHeaders });
 
   } catch (err) {
-    console.error("Insight generation error:", err);
+    console.error("[insight] Unexpected error:", err);
     return NextResponse.json(
       { error: "Failed to generate insights" },
       { status: 500, headers: corsHeaders }

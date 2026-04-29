@@ -44,17 +44,22 @@ export default function DemographicTags({ voteId, onComplete }: DemographicTagsP
 
     setSaving(true);
     try {
-      const updates: Record<string, string> = {};
+      // Build update payload — only include fields that were selected
+      const updates: Record<string, string | undefined> = {};
       if (age) updates.age_group = age;
-      if (gender) updates.region = gender; // reuse region field temporarily, or use a separate column
+      if (gender) updates.gender = gender;
 
       // Update the vote record with demographic tags
-      await supabase
-        .from("votes")
-        .update({
-          age_group: age || undefined,
-        })
-        .eq("id", voteId);
+      if (Object.keys(updates).length > 0) {
+        const { error } = await supabase
+          .from("votes")
+          .update(updates)
+          .eq("id", voteId);
+
+        if (error) {
+          console.error("[DemographicTags] Update failed:", error.message);
+        }
+      }
 
       // Store demographic locally to not ask again today
       try {

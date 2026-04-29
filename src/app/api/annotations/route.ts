@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { getServerSupabase } from "@/lib/supabaseServer";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,12 +30,18 @@ async function validateApiKey(req: NextRequest): Promise<{ id: string; name: str
   const apiKey = auth.slice(7).trim();
   if (!apiKey || apiKey.length < 10) return null;
 
-  const { data } = await supabase
+  const supabase = getServerSupabase();
+  const { data, error } = await supabase
     .from("verified_partners")
     .select("id, name")
     .eq("api_key", apiKey)
     .eq("is_active", true)
     .single();
+
+  if (error) {
+    console.error("[annotations] Partner validation failed:", error.message);
+    return null;
+  }
 
   return data || null;
 }
@@ -52,17 +53,23 @@ export async function OPTIONS() {
 // GET — List annotations (public for approved ones)
 export async function GET(req: NextRequest) {
   try {
+    const supabase = getServerSupabase();
     const { searchParams } = new URL(req.url);
     const questionId = searchParams.get("question_id");
 
     // Try RPC first
     let annotations = null;
-    try {
-      const { data } = await supabase.rpc("get_map_annotations", {
-        q_id: questionId || null,
-      });
-      annotations = data;
-    } catch {
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_map_annotations", {
+      q_id: questionId || null,
+    });
+
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      annotations = rpcData;
+    } else {
+      if (rpcError) {
+        console.warn("[annotations] RPC failed, using fallback:", rpcError.message);
+      }
+
       // Fallback: direct query
       let query = supabase
         .from("fact_check_annotations")
@@ -80,9 +87,18 @@ export async function GET(req: NextRequest) {
         query = query.eq("question_id", questionId);
       }
 
-      const { data } = await query;
-      if (data) {
-        annotations = data.map((a: any) => ({
+      const { data: fallbackData, error: fallbackError } = await query;
+
+      if (fallbackError) {
+        console.error("[annotations] Fallback query failed:", fallbackError.message);
+        return NextResponse.json(
+          { error: "Failed to fetch annotations", details: fallbackError.message },
+          { status: 500, headers: corsHeaders }
+        );
+      }
+
+      if (fallbackData) {
+        annotations = fallbackData.map((a: any) => ({
           id: a.id,
           partner_name: a.verified_partners?.name || "Unknown",
           partner_type: a.verified_partners?.type || "ngo",
@@ -105,7 +121,8 @@ export async function GET(req: NextRequest) {
       count: annotations?.length || 0,
     }, { headers: corsHeaders });
 
-  } catch {
+  } catch (err) {
+    console.error("[annotations] Unexpected error:", err);
     return NextResponse.json(
       { error: "Failed to fetch annotations" },
       { status: 500, headers: corsHeaders }
@@ -152,8 +169,7 @@ export async function POST(req: NextRequest) {
     // Auto-approve context/correlation, require review for correction/warning
     const autoApprove = ["context", "correlation"].includes(annotation_type);
 
-    await supabase.auth.signInAnonymously();
-
+    const supabase = getServerSupabase();
     const { data, error } = await supabase
       .from("fact_check_annotations")
       .insert({
@@ -227,8 +243,7 @@ export async function PATCH(req: NextRequest) {
     if (is_visible !== undefined) updates.is_visible = is_visible;
     if (is_approved !== undefined) updates.is_approved = is_approved;
 
-    await supabase.auth.signInAnonymously();
-
+    const supabase = getServerSupabase();
     const { error } = await supabase
       .from("fact_check_annotations")
       .update(updates)
