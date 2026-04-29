@@ -64,18 +64,33 @@ function getCurrentStreak(): number {
 }
 
 // ── City detection via reverse geocoding ──
+// Walks Nominatim's address fields from most-specific to least-specific so
+// votes from suburbs / villages / districts still get a place tag (instead
+// of falling through to null and being invisible in the City Challenge).
 async function detectLocation(lat: number, lng: number): Promise<{
   city: string | null;
   countryCode: string | null;
 }> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&addressdetails=1`,
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&addressdetails=1&accept-language=en`,
       { headers: { "Accept-Language": "en" } }
     );
     const data = await res.json();
-    const city = data?.address?.city || data?.address?.town || data?.address?.state || null;
-    const countryCode = data?.address?.country_code?.toUpperCase() || null;
+    const a = data?.address || {};
+    const city =
+      a.city ||
+      a.town ||
+      a.village ||
+      a.municipality ||
+      a.suburb ||
+      a.city_district ||
+      a.county ||
+      a.state_district ||
+      a.state ||
+      a.region ||
+      null;
+    const countryCode = a.country_code?.toUpperCase() || null;
     return { city, countryCode };
   } catch {
     return { city: null, countryCode: null };

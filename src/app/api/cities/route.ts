@@ -100,6 +100,44 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── Country-level fallback ──
+    // If no city-tagged votes exist (common when reverse-geocoding fails or
+    // users skip the city detection), aggregate by country_code instead, so
+    // the leaderboard isn't empty when there ARE votes — just untagged ones.
+    if (!cities || cities.length === 0) {
+      const since = new Date(Date.now() - validDays * 86400000).toISOString();
+      const { data: anyVotes } = await supabase
+        .from("votes")
+        .select("country_code, device_id")
+        .gte("created_at", since)
+        .not("country_code", "is", null);
+
+      if (anyVotes && anyVotes.length > 0) {
+        const countryMap: Record<string, { votes: number; voters: Set<string> }> = {};
+        anyVotes.forEach((v: { country_code: string; device_id: string }) => {
+          if (!v.country_code) return;
+          if (!countryMap[v.country_code]) {
+            countryMap[v.country_code] = { votes: 0, voters: new Set() };
+          }
+          countryMap[v.country_code].votes++;
+          countryMap[v.country_code].voters.add(v.device_id);
+        });
+
+        cities = Object.entries(countryMap)
+          .map(([cc, stats]) => ({
+            city: cc, // fall back to country-code as the "city" label
+            country_code: cc,
+            vote_count: stats.votes,
+            pin_count: 0,
+            post_count: 0,
+            unique_voters: stats.voters.size,
+            engagement_score: stats.votes * 0.4 + stats.voters.size * 5 * 0.15,
+          }))
+          .sort((a, b) => b.engagement_score - a.engagement_score)
+          .slice(0, 50);
+      }
+    }
+
     const activeCity = cities && cities.length > 0 ? cities[0] : null;
 
     return NextResponse.json({

@@ -188,8 +188,23 @@ export default function CityChallenge({ onClose }: CityChallengeProps) {
             <h3 className="text-sm font-bold text-white mb-3">Leaderboard</h3>
 
             {data.leaderboard.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-slate-500">No city data yet. Vote with location enabled to see rankings!</p>
+              <div className="text-center py-10 px-4">
+                <div className="text-4xl mb-3 opacity-50">🌐</div>
+                <p className="text-slate-300 font-semibold mb-2">No city data yet</p>
+                <p className="text-slate-500 text-sm leading-relaxed mb-4">
+                  Cities and countries appear here as soon as voters allow location.
+                  Cast your vote with location enabled and you&apos;ll see your city
+                  show up in the next few seconds.
+                </p>
+                <a
+                  href="/api/cities?debug=true"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-[10px] font-mono uppercase tracking-wider
+                    text-slate-600 hover:text-cyan-400 transition-colors"
+                >
+                  Open diagnostic →
+                </a>
               </div>
             )}
 
