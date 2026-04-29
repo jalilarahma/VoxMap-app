@@ -175,14 +175,24 @@ export default function WorldMap({ lang }: WorldMapProps) {
     } catch {}
   }, []);
 
-  // ── Mode-driven pane opacity — fades each layer with a 300ms transition ──
+  // ── Mode-driven pane opacity — fades each layer with a 300ms transition.
+  // Also disables pointer-events on the inactive pane so hidden markers don't
+  // intercept clicks (e.g. an SOS pin's popup opening while in Sentiment mode),
+  // and closes any popup left open from the outgoing layer.
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
     const sosPane = map.getPane?.("voxmap-sos");
     const sentimentPane = map.getPane?.("voxmap-sentiment");
-    if (sosPane) sosPane.style.opacity = viewMode === "sos" ? "1" : "0";
-    if (sentimentPane) sentimentPane.style.opacity = viewMode === "sentiment" ? "1" : "0";
+    if (sosPane) {
+      sosPane.style.opacity = viewMode === "sos" ? "1" : "0";
+      sosPane.style.pointerEvents = viewMode === "sos" ? "auto" : "none";
+    }
+    if (sentimentPane) {
+      sentimentPane.style.opacity = viewMode === "sentiment" ? "1" : "0";
+      sentimentPane.style.pointerEvents = viewMode === "sentiment" ? "auto" : "none";
+    }
+    map.closePopup?.();
   }, [viewMode]);
 
   // Fetch trust scores for all pins
@@ -392,15 +402,19 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
       // ── Mode-isolated panes — SOS pins vs Sentiment orbs live in separate
       // panes so we can fade one out and the other in via a CSS transition.
+      // Each pane's pointer-events follow its opacity so the hidden layer
+      // can't intercept clicks on behalf of invisible markers.
       const sosPane = map.createPane("voxmap-sos");
       sosPane.style.transition = "opacity 300ms ease";
       sosPane.style.zIndex = "610"; // above default markers (600)
       sosPane.style.opacity = "1";
+      sosPane.style.pointerEvents = "auto";
 
       const sentimentPane = map.createPane("voxmap-sentiment");
       sentimentPane.style.transition = "opacity 300ms ease";
       sentimentPane.style.zIndex = "605";
       sentimentPane.style.opacity = "0"; // hidden until user picks Sentiment mode
+      sentimentPane.style.pointerEvents = "none";
 
       // Zoom controls bottom-right
       L.control.zoom({ position: "bottomright" }).addTo(map);
