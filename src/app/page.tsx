@@ -190,16 +190,6 @@ export default function Home() {
                   PROFILE
                 </span>
               </button>
-              <a href="/about"
-                className="w-10 h-10 flex items-center justify-center rounded-xl
-                  hover:bg-white/[0.08] transition-all text-sm group relative" title="About VoxMap">
-                ℹ️
-                <span className="absolute left-12 px-2 py-1 rounded-lg bg-black/80 backdrop-blur-xl
-                  border border-white/[0.08] text-[10px] font-mono text-cyan-400 whitespace-nowrap
-                  opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  ABOUT
-                </span>
-              </a>
               <div className="h-px bg-white/[0.06] mx-1" />
               <StealthToggle />
             </div>
