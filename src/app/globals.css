@@ -156,6 +156,10 @@ body {
 .map-legend-chip .swatch-dot {
   width: 7px; height: 7px; border-radius: 50%;
 }
+.map-legend-chip .swatch-orb {
+  width: 14px; height: 14px; border-radius: 50%;
+  /* background set inline so each orb gets its own gradient */
+}
 
 /* Gradient text */
 .gradient-text {

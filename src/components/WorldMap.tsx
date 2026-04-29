@@ -159,7 +159,8 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeed, setShowFeed] = useState(false);
   const [helpedCount, setHelpedCount] = useState(0);
-  const [showVoteMap, setShowVoteMap] = useState(true);
+  // ── Mutually-exclusive map mode: SOS (physical events) vs Sentiment (vote clouds) ──
+  const [viewMode, setViewMode] = useState<"sos" | "sentiment">("sos");
   const voteMarkersRef = useRef<any[]>([]);
   const [trustScores, setTrustScores] = useState<Record<string, TrustScore>>({});
   const [showFactCheck, setShowFactCheck] = useState(true);
@@ -175,6 +176,16 @@ export default function WorldMap({ lang }: WorldMapProps) {
       setVerifiedPins(raw ? JSON.parse(raw) : []);
     } catch {}
   }, []);
+
+  // ── Mode-driven pane opacity — fades each layer with a 300ms transition ──
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const sosPane = map.getPane?.("voxmap-sos");
+    const sentimentPane = map.getPane?.("voxmap-sentiment");
+    if (sosPane) sosPane.style.opacity = viewMode === "sos" ? "1" : "0";
+    if (sentimentPane) sentimentPane.style.opacity = viewMode === "sentiment" ? "1" : "0";
+  }, [viewMode]);
 
   // Fetch trust scores for all pins
   async function fetchTrustScores() {
@@ -381,6 +392,18 @@ export default function WorldMap({ lang }: WorldMapProps) {
         className: "ghost-labels",
       }).addTo(map);
 
+      // ── Mode-isolated panes — SOS pins vs Sentiment orbs live in separate
+      // panes so we can fade one out and the other in via a CSS transition.
+      const sosPane = map.createPane("voxmap-sos");
+      sosPane.style.transition = "opacity 300ms ease";
+      sosPane.style.zIndex = "610"; // above default markers (600)
+      sosPane.style.opacity = "1";
+
+      const sentimentPane = map.createPane("voxmap-sentiment");
+      sentimentPane.style.transition = "opacity 300ms ease";
+      sentimentPane.style.zIndex = "605";
+      sentimentPane.style.opacity = "0"; // hidden until user picks Sentiment mode
+
       // Zoom controls bottom-right
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
@@ -447,14 +470,6 @@ export default function WorldMap({ lang }: WorldMapProps) {
 
         // Outer glow ring based on trust score
         if (trustTotal > 0) {
-          L.circleMarker([pin.lat, pin.lng], {
-            radius: (pin.urgency === "critical" ? 12 : pin.urgency === "high" ? 10 : 8) + 6,
-            fillColor: trustColor,
-            color: trustColor,
-            weight: 0,
-            opacity: trustGlow * 0.6,
-            fillOpacity: trustGlow * 0.25,
-          }).addTo(mapInstanceRef.current);
           markersRef.current.push(
             L.circleMarker([pin.lat, pin.lng], {
               radius: (pin.urgency === "critical" ? 12 : pin.urgency === "high" ? 10 : 8) + 6,
@@ -463,6 +478,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
               weight: 0,
               opacity: trustGlow * 0.6,
               fillOpacity: trustGlow * 0.25,
+              pane: "voxmap-sos",
             }).addTo(mapInstanceRef.current)
           );
         }
@@ -489,6 +505,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
             iconSize: [pinSize * 2, pinSize * 2],
             iconAnchor: [pinSize, pinSize],
           }),
+          pane: "voxmap-sos",
         }).addTo(mapInstanceRef.current);
 
         const timeAgo = getTimeAgo(pin.created_at);
@@ -594,16 +611,15 @@ export default function WorldMap({ lang }: WorldMapProps) {
     });
   }, [pins, lang, trustScores, verifiedPins, categoryFilter]);
 
-  // ── Vote Sentiment Heatmap ──
-  // Shows colored circles on the map: green = agree, red = disagree
-  // Each vote location appears as a glowing circle so you can see
-  // "Doha is red, Lusail is green, Madrid is red with some green streets"
+  // ── Sentiment Cloud Layer ──
+  // Each vote location is rendered as a soft, multi-ring "sentiment orb"
+  // (no hard center) so the map feels atmospheric — public opinion as a
+  // weather pattern rather than discrete physical points.
+  // Markers live in the `voxmap-sentiment` pane; the pane's opacity is
+  // driven by viewMode, so we always populate the data and let the pane
+  // handle visibility + the 300ms fade.
   useEffect(() => {
-    if (!mapInstanceRef.current || !showVoteMap) {
-      voteMarkersRef.current.forEach((m) => m.remove());
-      voteMarkersRef.current = [];
-      return;
-    }
+    if (!mapInstanceRef.current) return;
 
     async function fetchVoteLocations() {
       const dayOfYear = Math.floor(
@@ -664,41 +680,55 @@ export default function WorldMap({ lang }: WorldMapProps) {
           if (lat === null || lng === null || isNaN(lat) || isNaN(lng)) return;
           if (lat === 0 && lng === 0) return; // Skip null island
 
-          // Blue for agree (0), Amber for disagree (1) — distinct from SOS pins
+          // Blue for agree (0), Amber for disagree (1) — sentiment-only palette
           const isAgree = vote.option_index === 0;
           const color = isAgree ? "#3B82F6" : "#F59E0B";
 
-          // Soft glow — subtle ambient
-          const glow = L.circleMarker([lat, lng], {
+          // ── Sentiment Orb — soft, atmospheric, no hard edges ──
+          // Three concentric rings of falling opacity create a fluid "cloud"
+          // feel instead of a discrete data point.
+          const ringSpecs = [
+            { radius: 28, fillOpacity: 0.05 }, // outer haze
+            { radius: 18, fillOpacity: 0.12 }, // mid bloom
+            { radius: 10, fillOpacity: 0.22 }, // inner glow
+          ];
+          ringSpecs.forEach((spec) => {
+            const ring = L.circleMarker([lat, lng], {
+              radius: spec.radius,
+              fillColor: color,
+              color: "transparent",
+              weight: 0,
+              fillOpacity: spec.fillOpacity,
+              pane: "voxmap-sentiment",
+              interactive: false,
+            }).addTo(mapInstanceRef.current!);
+            voteMarkersRef.current.push(ring);
+          });
+
+          // Tiny invisible hit-target so hover tooltips still work without
+          // showing a hard center dot.
+          const hit = L.circleMarker([lat, lng], {
             radius: 14,
             fillColor: color,
             color: "transparent",
             weight: 0,
-            fillOpacity: 0.12,
+            fillOpacity: 0,
+            pane: "voxmap-sentiment",
           }).addTo(mapInstanceRef.current!);
-          voteMarkersRef.current.push(glow);
-
-          // Small data dot — compact, not confused with SOS
-          const circle = L.circleMarker([lat, lng], {
-            radius: 5,
-            fillColor: color,
-            color: color,
-            weight: 1,
-            fillOpacity: 0.7,
-          }).addTo(mapInstanceRef.current!);
-
-          circle.bindTooltip(
-            `${isAgree ? "🔵 Agree" : "🟠 Disagree"}${vote.country_code ? " · " + vote.country_code : ""}`,
+          hit.bindTooltip(
+            `${isAgree ? "Agree" : "Disagree"}${vote.country_code ? " · " + vote.country_code : ""}`,
             { direction: "top", className: "pin-label" }
           );
-
-          voteMarkersRef.current.push(circle);
+          voteMarkersRef.current.push(hit);
         });
       });
     }
 
-    fetchVoteLocations();
-  }, [showVoteMap]);
+    // Refetch every time the user enters sentiment mode so the cloud reflects
+    // the latest votes; SOS-mode entries are no-op for vote data.
+    if (viewMode === "sentiment") fetchVoteLocations();
+    else if (voteMarkersRef.current.length === 0) fetchVoteLocations(); // initial preload so first switch is instant
+  }, [viewMode]);
 
   // ── Fact-Check Annotation Overlay ──
   useEffect(() => {
@@ -928,9 +958,18 @@ export default function WorldMap({ lang }: WorldMapProps) {
       {/* Map — deep charcoal canvas */}
       <div ref={mapRef} className="w-full h-full z-0" style={{ background: "#0A0A0A" }} />
 
-      {/* ── Intelligence Overlay (heatmap + hex grid + arcs) ── */}
+      {/* ── Intelligence Overlay (heatmap + hex grid + arcs) — bound to SOS world ── */}
       {mapInstanceRef.current && (
-        <IntelligenceOverlay mapInstance={mapInstanceRef.current} />
+        <div
+          aria-hidden={viewMode !== "sos"}
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            opacity: viewMode === "sos" ? 1 : 0,
+            transition: "opacity 300ms ease",
+          }}
+        >
+          <IntelligenceOverlay mapInstance={mapInstanceRef.current} />
+        </div>
       )}
 
       {/* ── Vignette — darkened edges, focuses eye on center ── */}
@@ -1018,86 +1057,113 @@ export default function WorldMap({ lang }: WorldMapProps) {
         </div>
       )}
 
-      {/* Layer toggles — Intel + Votes — glassmorphism */}
-      <div className="absolute top-4 right-[320px] z-[1000] flex gap-2">
+      {/* ── Mode segmented control — choose one "world": SOS or Sentiment ── */}
+      <div
+        role="radiogroup"
+        aria-label="Map view mode"
+        className="absolute top-4 right-[320px] z-[1000] flex items-center
+          bg-black/40 backdrop-blur-xl rounded-xl p-1
+          border border-white/[0.08] shadow-lg shadow-black/30"
+      >
         <button
-          onClick={() => setShowFactCheck(!showFactCheck)}
-          aria-label={showFactCheck ? "Hide fact-check overlay" : "Show fact-check overlay"}
-          aria-pressed={showFactCheck}
-          className={`px-3 py-2 rounded-xl text-xs font-mono font-bold
-            backdrop-blur-xl transition-all flex items-center gap-1.5 uppercase tracking-wider
-            ${showFactCheck
-              ? "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-lg shadow-cyan-500/10"
-              : "bg-black/30 border border-white/[0.06] text-slate-500"
+          role="radio"
+          aria-checked={viewMode === "sos"}
+          onClick={() => setViewMode("sos")}
+          className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase
+            tracking-wider transition-all flex items-center gap-1.5
+            ${viewMode === "sos"
+              ? "bg-red-500/15 text-red-300 shadow-inner shadow-red-500/10"
+              : "text-slate-500 hover:text-white"
             }`}
         >
-          <span className="text-sm">{showFactCheck ? "✅" : "📋"}</span>
-          Intel
+          <span className="text-sm">🆘</span>
+          SOS
         </button>
         <button
-          onClick={() => setShowVoteMap(!showVoteMap)}
-          aria-label={showVoteMap ? "Hide vote heatmap" : "Show vote heatmap"}
-          aria-pressed={showVoteMap}
-          className={`px-3 py-2 rounded-xl text-xs font-mono font-bold
-            backdrop-blur-xl transition-all flex items-center gap-1.5 uppercase tracking-wider
-            ${showVoteMap
-              ? "bg-blue-500/10 border border-blue-500/20 text-blue-400 shadow-lg shadow-blue-500/10"
-              : "bg-black/30 border border-white/[0.06] text-slate-500"
+          role="radio"
+          aria-checked={viewMode === "sentiment"}
+          onClick={() => setViewMode("sentiment")}
+          className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase
+            tracking-wider transition-all flex items-center gap-1.5
+            ${viewMode === "sentiment"
+              ? "bg-blue-500/15 text-blue-300 shadow-inner shadow-blue-500/10"
+              : "text-slate-500 hover:text-white"
             }`}
         >
-          <span className="text-sm">{showVoteMap ? "🗳️" : "🗳"}</span>
-          Votes
+          <span className="text-sm">🌐</span>
+          Sentiment
         </button>
       </div>
 
-      {/* ── Category Filter chip row — horizontal scroll, only when there are pins ── */}
-      {pins.length > 0 && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[1000] max-w-[90vw]
+      {/* Intel overlay — independent of mode (works as context in either world) */}
+      <button
+        onClick={() => setShowFactCheck(!showFactCheck)}
+        aria-label={showFactCheck ? "Hide fact-check overlay" : "Show fact-check overlay"}
+        aria-pressed={showFactCheck}
+        className={`absolute top-4 right-[488px] z-[1000] px-3 py-2 rounded-xl text-xs font-mono font-bold
+          backdrop-blur-xl transition-all flex items-center gap-1.5 uppercase tracking-wider
+          ${showFactCheck
+            ? "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-lg shadow-cyan-500/10"
+            : "bg-black/30 border border-white/[0.06] text-slate-500"
+          }`}
+      >
+        <span className="text-sm">{showFactCheck ? "✅" : "📋"}</span>
+        Intel
+      </button>
+
+      {/* ── Category Filter chip row — only meaningful in SOS mode ── */}
+      <div
+        className={`absolute top-20 left-1/2 -translate-x-1/2 z-[1000] max-w-[90vw]
           bg-black/30 backdrop-blur-xl rounded-full px-2 py-1.5
           border border-white/[0.06] shadow-lg shadow-black/30
-          flex items-center gap-1 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setCategoryFilter(null)}
-            aria-pressed={categoryFilter === null}
-            className={`px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider whitespace-nowrap transition-all
-              ${categoryFilter === null
-                ? "bg-white/[0.12] text-white border border-white/20"
-                : "text-slate-400 hover:text-white border border-transparent"}`}
-          >
-            All ({pins.filter((p) => p.category !== "community").length})
-          </button>
-          {SOS_CATEGORIES.filter((c) => c.id !== "community").map((cat) => {
-            const count = pins.filter((p) => p.category === cat.id).length;
-            if (count === 0) return null;
-            const active = categoryFilter === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setCategoryFilter(active ? null : cat.id)}
-                aria-pressed={active}
-                title={tr[cat.id as keyof typeof tr] || cat.id}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-mono whitespace-nowrap transition-all
-                  flex items-center gap-1 border
-                  ${active
-                    ? "border-white/30 bg-white/[0.08] text-white"
-                    : "border-transparent text-slate-400 hover:text-white"}`}
-                style={active ? { boxShadow: `0 0 12px ${cat.color}55`, borderColor: `${cat.color}80` } : undefined}
-              >
-                <span>{cat.icon}</span>
-                <span style={active ? { color: cat.color } : undefined}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+          flex items-center gap-1 overflow-x-auto no-scrollbar
+          transition-opacity duration-300
+          ${viewMode === "sos" && pins.length > 0 ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+      >
+        <button
+          onClick={() => setCategoryFilter(null)}
+          aria-pressed={categoryFilter === null}
+          className={`px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider whitespace-nowrap transition-all
+            ${categoryFilter === null
+              ? "bg-white/[0.12] text-white border border-white/20"
+              : "text-slate-400 hover:text-white border border-transparent"}`}
+        >
+          All ({pins.filter((p) => p.category !== "community").length})
+        </button>
+        {SOS_CATEGORIES.filter((c) => c.id !== "community").map((cat) => {
+          const count = pins.filter((p) => p.category === cat.id).length;
+          if (count === 0) return null;
+          const active = categoryFilter === cat.id;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setCategoryFilter(active ? null : cat.id)}
+              aria-pressed={active}
+              title={tr[cat.id as keyof typeof tr] || cat.id}
+              className={`px-2.5 py-1 rounded-full text-[10px] font-mono whitespace-nowrap transition-all
+                flex items-center gap-1 border
+                ${active
+                  ? "border-white/30 bg-white/[0.08] text-white"
+                  : "border-transparent text-slate-400 hover:text-white"}`}
+              style={active ? { boxShadow: `0 0 12px ${cat.color}55`, borderColor: `${cat.color}80` } : undefined}
+            >
+              <span>{cat.icon}</span>
+              <span style={active ? { color: cat.color } : undefined}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      {/* ── Map Legend — collapsible glassmorphism ── */}
+      {/* ── Map Legend — collapsible, mode-aware glassmorphism ── */}
       <div className="absolute bottom-4 right-4 z-[1000]">
         {showLegend ? (
           <div className="bg-black/40 backdrop-blur-xl rounded-xl px-3 py-2.5
-            border border-white/[0.08] shadow-lg shadow-black/30 min-w-[180px]">
+            border border-white/[0.08] shadow-lg shadow-black/30 min-w-[190px]
+            transition-all duration-300">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[9px] font-mono uppercase tracking-wider text-slate-500">Legend</span>
+              <span className="text-[9px] font-mono uppercase tracking-wider text-slate-500">
+                {viewMode === "sos" ? "Legend · SOS" : "Legend · Sentiment"}
+              </span>
               <button
                 onClick={() => setShowLegend(false)}
                 aria-label="Hide legend"
@@ -1107,22 +1173,42 @@ export default function WorldMap({ lang }: WorldMapProps) {
               </button>
             </div>
             <div className="flex flex-col gap-1.5">
-              <div className="map-legend-chip">
-                <span className="swatch-tri" />
-                <span>SOS pin</span>
-              </div>
-              <div className="map-legend-chip">
-                <span className="swatch-dot" style={{ background: "#3B82F6", boxShadow: "0 0 6px #3B82F680" }} />
-                <span>Vote: agree</span>
-              </div>
-              <div className="map-legend-chip">
-                <span className="swatch-dot" style={{ background: "#F59E0B", boxShadow: "0 0 6px #F59E0B80" }} />
-                <span>Vote: disagree</span>
-              </div>
-              <div className="map-legend-chip">
-                <span className="swatch-dot" style={{ background: "#06B6D4", boxShadow: "0 0 6px #06B6D480" }} />
-                <span>Fact-check</span>
-              </div>
+              {viewMode === "sos" ? (
+                <>
+                  <div className="map-legend-chip">
+                    <span className="swatch-tri" />
+                    <span>SOS pin</span>
+                  </div>
+                  <div className="map-legend-chip">
+                    <span className="swatch-dot" style={{ background: "#22C55E", boxShadow: "0 0 6px #22C55E80" }} />
+                    <span>Verified pin</span>
+                  </div>
+                  <div className="map-legend-chip">
+                    <span className="swatch-dot" style={{ background: "#EF4444", boxShadow: "0 0 6px #EF444480" }} />
+                    <span>Disputed pin</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="map-legend-chip">
+                    <span className="swatch-orb" style={{ background: "radial-gradient(circle, #3B82F6CC 0%, #3B82F600 70%)" }} />
+                    <span>Agree cloud</span>
+                  </div>
+                  <div className="map-legend-chip">
+                    <span className="swatch-orb" style={{ background: "radial-gradient(circle, #F59E0BCC 0%, #F59E0B00 70%)" }} />
+                    <span>Disagree cloud</span>
+                  </div>
+                  <div className="text-[9px] font-mono text-slate-500 leading-tight pt-0.5">
+                    Soft glow = sentiment density.
+                  </div>
+                </>
+              )}
+              {showFactCheck && (
+                <div className="map-legend-chip pt-1 border-t border-white/[0.06] mt-1">
+                  <span className="swatch-dot" style={{ background: "#06B6D4", boxShadow: "0 0 6px #06B6D480" }} />
+                  <span>Fact-check</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
