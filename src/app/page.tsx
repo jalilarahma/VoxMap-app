@@ -27,6 +27,39 @@ const WorldMap = dynamic(() => import("@/components/WorldMap"), {
 
 type Screen = "splash" | "username" | "poll" | "demographics" | "map";
 
+// Check if the user has seen the splash before
+function hasSeenSplash(): boolean {
+  try {
+    return typeof window !== "undefined" && !!window.localStorage?.getItem("voxmap_seen_splash");
+  } catch { return false; }
+}
+
+function markSplashSeen() {
+  try { window.localStorage?.setItem("voxmap_seen_splash", "1"); } catch {}
+}
+
+// Check if user already voted today
+function hasVotedToday(): boolean {
+  try {
+    const streak = window.localStorage?.getItem("voxmap_streak");
+    if (!streak) return false;
+    const data = JSON.parse(streak);
+    return data.lastDate === new Date().toISOString().slice(0, 10);
+  } catch { return false; }
+}
+
+function getInitialScreen(): Screen {
+  if (typeof window === "undefined") return "splash";
+  // First time ever — show splash
+  if (!hasSeenSplash()) return "splash";
+  // Returning user without username
+  if (!hasUsername()) return "username";
+  // Already voted today — go straight to map
+  if (hasVotedToday()) return "map";
+  // Returning user, hasn't voted today — go to poll
+  return "poll";
+}
+
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("splash");
   const [lang, setLang] = useState<Lang>("en");
@@ -36,6 +69,11 @@ export default function Home() {
   const [showTimeLapse, setShowTimeLapse] = useState(false);
   const [showCityChallenge, setShowCityChallenge] = useState(false);
   const [showIntelHub, setShowIntelHub] = useState(false);
+
+  // On mount, determine the correct starting screen
+  useEffect(() => {
+    setScreen(getInitialScreen());
+  }, []);
 
   // Start notification scheduler if already granted
   useEffect(() => {
@@ -64,6 +102,7 @@ export default function Home() {
 
         {screen === "splash" && (
           <SplashScreen lang={lang} onEnter={() => {
+            markSplashSeen();
             if (hasUsername()) {
               setScreen("poll");
             } else {
