@@ -166,8 +166,6 @@ export default function WorldMap({ lang }: WorldMapProps) {
   const [showFactCheck, setShowFactCheck] = useState(true);
   const factCheckMarkersRef = useRef<any[]>([]);
   const [verifiedPins, setVerifiedPins] = useState<string[]>([]); // pins this user already voted on
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null); // null = show all
-  const [showLegend, setShowLegend] = useState(true);
 
   // Load locally verified pins
   useEffect(() => {
@@ -456,9 +454,6 @@ export default function WorldMap({ lang }: WorldMapProps) {
         // Skip community posts (they're shown in Community feed, not map)
         if (pin.category === "community") return;
 
-        // Active category filter — skip pins not in the filtered category
-        if (categoryFilter && pin.category !== categoryFilter) return;
-
         // Trust score for this pin
         const ts = trustScores[pin.id];
         const trustScore = ts?.trust_score || 0;
@@ -609,7 +604,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
         markersRef.current.push(marker);
       });
     });
-  }, [pins, lang, trustScores, verifiedPins, categoryFilter]);
+  }, [pins, lang, trustScores, verifiedPins]);
 
   // ── Sentiment Cloud Layer ──
   // Each vote location is rendered as a soft, multi-ring "sentiment orb"
@@ -1116,118 +1111,6 @@ export default function WorldMap({ lang }: WorldMapProps) {
             Sentiment
           </button>
         </div>
-      </div>
-
-      {/* ── Category Filter chip row — only meaningful in SOS mode ── */}
-      <div
-        className={`absolute top-20 left-1/2 -translate-x-1/2 z-[1000] max-w-[90vw]
-          bg-black/30 backdrop-blur-xl rounded-full px-2 py-1.5
-          border border-white/[0.06] shadow-lg shadow-black/30
-          flex items-center gap-1 overflow-x-auto no-scrollbar
-          transition-opacity duration-300
-          ${viewMode === "sos" && pins.length > 0 ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-      >
-        <button
-          onClick={() => setCategoryFilter(null)}
-          aria-pressed={categoryFilter === null}
-          className={`px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider whitespace-nowrap transition-all
-            ${categoryFilter === null
-              ? "bg-white/[0.12] text-white border border-white/20"
-              : "text-slate-400 hover:text-white border border-transparent"}`}
-        >
-          All ({pins.filter((p) => p.category !== "community").length})
-        </button>
-        {SOS_CATEGORIES.filter((c) => c.id !== "community").map((cat) => {
-          const count = pins.filter((p) => p.category === cat.id).length;
-          if (count === 0) return null;
-          const active = categoryFilter === cat.id;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setCategoryFilter(active ? null : cat.id)}
-              aria-pressed={active}
-              title={tr[cat.id as keyof typeof tr] || cat.id}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-mono whitespace-nowrap transition-all
-                flex items-center gap-1 border
-                ${active
-                  ? "border-white/30 bg-white/[0.08] text-white"
-                  : "border-transparent text-slate-400 hover:text-white"}`}
-              style={active ? { boxShadow: `0 0 12px ${cat.color}55`, borderColor: `${cat.color}80` } : undefined}
-            >
-              <span>{cat.icon}</span>
-              <span style={active ? { color: cat.color } : undefined}>{count}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Map Legend — collapsible, mode-aware glassmorphism ── */}
-      <div className="absolute bottom-4 right-4 z-[1000]">
-        {showLegend ? (
-          <div className="bg-black/40 backdrop-blur-xl rounded-xl px-3 py-2.5
-            border border-white/[0.08] shadow-lg shadow-black/30 min-w-[190px]
-            transition-all duration-300">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[9px] font-mono uppercase tracking-wider text-slate-500">
-                {viewMode === "sos" ? "Legend · SOS" : "Legend · Sentiment"}
-              </span>
-              <button
-                onClick={() => setShowLegend(false)}
-                aria-label="Hide legend"
-                className="text-slate-600 hover:text-white text-[10px] leading-none"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {viewMode === "sos" ? (
-                <>
-                  <div className="map-legend-chip">
-                    <span className="swatch-tri" />
-                    <span>SOS pin</span>
-                  </div>
-                  <div className="map-legend-chip">
-                    <span className="swatch-dot" style={{ background: "#22C55E", boxShadow: "0 0 6px #22C55E80" }} />
-                    <span>Verified pin</span>
-                  </div>
-                  <div className="map-legend-chip">
-                    <span className="swatch-dot" style={{ background: "#EF4444", boxShadow: "0 0 6px #EF444480" }} />
-                    <span>Disputed pin</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="map-legend-chip">
-                    <span className="swatch-orb" style={{ background: "radial-gradient(circle, #3B82F6CC 0%, #3B82F600 70%)" }} />
-                    <span>Agree cloud</span>
-                  </div>
-                  <div className="map-legend-chip">
-                    <span className="swatch-orb" style={{ background: "radial-gradient(circle, #F59E0BCC 0%, #F59E0B00 70%)" }} />
-                    <span>Disagree cloud</span>
-                  </div>
-                  <div className="text-[9px] font-mono text-slate-500 leading-tight pt-0.5">
-                    Soft glow = sentiment density.
-                  </div>
-                </>
-              )}
-              {showFactCheck && (
-                <div className="map-legend-chip pt-1 border-t border-white/[0.06] mt-1">
-                  <span className="swatch-dot" style={{ background: "#06B6D4", boxShadow: "0 0 6px #06B6D480" }} />
-                  <span>Fact-check</span>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowLegend(true)}
-            aria-label="Show legend"
-            className="bg-black/40 backdrop-blur-xl rounded-xl w-9 h-9 flex items-center justify-center
-              border border-white/[0.08] text-slate-400 hover:text-white text-xs font-mono"
-          >
-            ?
-          </button>
-        )}
       </div>
 
       {/* ── SOS Button — glassmorphism with subtle pulse ── */}
