@@ -494,13 +494,19 @@ export default function WorldMap({ lang }: WorldMapProps) {
     };
   }, []);
 
-  // Update markers
+  // Update markers — only render SOS markers when actively in SOS mode.
+  // (Pane-level pointer-events: none doesn't block Leaflet's click
+  //  hit-detection, so hidden SOS pins were still catching clicks and
+  //  popping up over the Sentiment world. Removing them entirely is the
+  //  only reliable way to keep the worlds isolated.)
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     import("leaflet").then((L) => {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
+
+      if (viewMode !== "sos") return;
 
       pins.forEach((pin) => {
         const cat = SOS_CATEGORIES.find((c) => c.id === pin.category);
@@ -659,7 +665,7 @@ export default function WorldMap({ lang }: WorldMapProps) {
         markersRef.current.push(marker);
       });
     });
-  }, [pins, lang, trustScores, verifiedPins]);
+  }, [pins, lang, trustScores, verifiedPins, viewMode]);
 
   // ── Sentiment Cloud Layer ──
   // Each vote location is rendered as a soft, multi-ring "sentiment orb"
@@ -812,10 +818,14 @@ export default function WorldMap({ lang }: WorldMapProps) {
       });
     }
 
-    // Refetch every time the user enters sentiment mode so the cloud reflects
-    // the latest votes; SOS-mode entries are no-op for vote data.
-    if (viewMode === "sentiment") fetchVoteLocations();
-    else if (voteMarkersRef.current.length === 0) fetchVoteLocations(); // initial preload so first switch is instant
+    // Only render vote orbs when actively in Sentiment mode. Otherwise clear
+    // them so they can't catch clicks beneath the SOS world.
+    if (viewMode === "sentiment") {
+      fetchVoteLocations();
+    } else {
+      voteMarkersRef.current.forEach((m) => m.remove());
+      voteMarkersRef.current = [];
+    }
   }, [viewMode]);
 
   // ── Fact-Check Annotation Overlay ──
